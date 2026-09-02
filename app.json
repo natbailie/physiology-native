@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Physiology",
+    "slug": "physiology-native",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "physiology",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bentara.physiology"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.bentara.physiology"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset"
+    ]
+  }
+}

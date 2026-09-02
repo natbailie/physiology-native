@@ -1,0 +1,21 @@
+import { computeDerived, createInitialState, step } from './engine';
+import { GLUCOSE_SIMULATION } from './constants';
+import type { NativeLoopConfig } from '../../hooks/useNativeEngineLoop';
+import type { GlucoseDerived, GlucoseHistoryPoint, GlucoseInputs, GlucoseState } from './types';
+
+export const glucoseNativeLoopConfig: NativeLoopConfig<GlucoseState, GlucoseInputs, GlucoseDerived, GlucoseHistoryPoint> = {
+  createInitialState,
+  step,
+  computeDerived,
+  toHistoryPoint: (snapshot) => ({
+    t: snapshot.state.simTimeSeconds,
+    bloodGlucose: snapshot.derived.bloodGlucoseMgDl,
+    insulin: snapshot.derived.insulinLevel,
+    glucagon: snapshot.derived.glucagonLevel,
+  }),
+  maxDtSeconds: GLUCOSE_SIMULATION.MAX_DT_SECONDS,
+  settleSeconds: GLUCOSE_SIMULATION.SETTLE_SECONDS,
+  renderIntervalMs: GLUCOSE_SIMULATION.RENDER_INTERVAL_MS,
+  historyCapacity: GLUCOSE_SIMULATION.HISTORY_CAPACITY,
+  timeScale: GLUCOSE_SIMULATION.TIME_SCALE,
+};
