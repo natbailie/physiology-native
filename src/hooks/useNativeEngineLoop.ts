@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { RingBuffer } from '../shared/lib/ringBuffer';
 
 export interface NativeLoopConfig<TState, TInputs, TDerived, THistoryPoint> {
   createInitialState: () => TState;
@@ -57,22 +58,6 @@ function sameInputs<TInputs>(a: TInputs, b: TInputs): boolean {
   return keys.every((key) => Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }
 
-/** A bounded history buffer — the native mirror of the web `RingBuffer`. */
-class NativeRingBuffer<T> {
-  private items: T[] = [];
-  constructor(private capacity: number) {}
-  push(item: T) {
-    this.items.push(item);
-    if (this.items.length > this.capacity) this.items.splice(0, this.items.length - this.capacity);
-  }
-  toArray(): T[] {
-    return [...this.items];
-  }
-  clear() {
-    this.items = [];
-  }
-}
-
 function nowSeconds(): number {
   return Date.now() / 1000;
 }
@@ -98,7 +83,7 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
 
   const [initialState] = useState(() => settledState(config, inputs));
   const stateRef = useRef(initialState);
-  const historyRef = useRef(new NativeRingBuffer<THistoryPoint>(config.historyCapacity));
+  const historyRef = useRef(new RingBuffer<THistoryPoint>(config.historyCapacity));
 
   const [snapshot, setSnapshot] = useState<{ state: TState; derived: TDerived }>(() => ({
     state: initialState,
@@ -214,7 +199,7 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
     const cfg = configRef.current;
     const activeInputs = inputsOverride ?? inputsRef.current;
     stateRef.current = settledState(cfg, activeInputs);
-    historyRef.current = new NativeRingBuffer<THistoryPoint>(cfg.historyCapacity);
+    historyRef.current = new RingBuffer<THistoryPoint>(cfg.historyCapacity);
     setSnapshot({
       state: stateRef.current,
       derived: cfg.computeDerived(stateRef.current, activeInputs),

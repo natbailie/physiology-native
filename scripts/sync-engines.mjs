@@ -15,7 +15,7 @@
  *   node scripts/sync-engines.mjs --check    # exit 1 if any copy has drifted (CI / pre-commit)
  */
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -136,6 +136,11 @@ function buildManifest() {
     { web: 'src/shared/assessment/verifyQuestion.ts', native: 'src/shared/assessment/verifyQuestion.ts' },
     { web: 'src/shared/assessment/verifyPattern.ts', native: 'src/shared/assessment/verifyPattern.ts' },
     { web: 'src/theme/tokens.generated.ts', native: 'src/presentation/tokens.generated.ts' },
+    { web: 'src/shared/lib/ringBuffer.ts', native: 'src/shared/lib/ringBuffer.ts' },
+    { web: 'src/shared/assessment/scheduling.ts', native: 'src/shared/assessment/scheduling.ts' },
+    { web: 'src/shared/assessment/progressStore.ts', native: 'src/shared/assessment/progressStore.ts' },
+    { web: 'src/shared/assessment/weakness.ts', native: 'src/shared/assessment/weakness.ts' },
+    { web: 'src/home/moduleRegistry.ts', native: 'src/home/moduleRegistry.ts' },
   ];
 
   for (const [webModule, nativeModule] of Object.entries(MODULES)) {
@@ -158,6 +163,13 @@ function buildManifest() {
   return entries;
 }
 
+/** Directories that hold nothing but synced copies, so anything else in them is an orphan. */
+const SYNCED_ONLY_DIRS = new Set([
+  'src/shared/assessment',
+  'src/shared/lib',
+  'src/home',
+]);
+
 /** Native files sitting in a synced directory with no web source — a rename or deletion upstream. */
 function findOrphans(entries) {
   const expected = new Map();
@@ -173,8 +185,9 @@ function findOrphans(entries) {
     for (const name of readdirSync(abs).sort()) {
       if (!name.endsWith('.ts') && !name.endsWith('.tsx')) continue;
       if (names.has(name) || NATIVE_ONLY.has(name)) continue;
-      // Only directories that exist purely to hold synced copies are policed.
-      if (dir.startsWith('src/engine/') || dir === 'src/shared/assessment') orphans.push(`${dir}/${name}`);
+      // Only directories that exist purely to hold synced copies are policed. src/presentation
+      // is not among them: it mixes synced schema with hand-written views.
+      if (dir.startsWith('src/engine/') || SYNCED_ONLY_DIRS.has(dir)) orphans.push(`${dir}/${name}`);
     }
   }
   return orphans;
@@ -195,6 +208,7 @@ if (!existsSync(WEB_ROOT)) {
 const entries = buildManifest();
 const drifted = [];
 const missing = [];
+const reachedForImportMeta = [];
 let written = 0;
 
 for (const { web, native } of entries) {
@@ -206,13 +220,23 @@ for (const { web, native } of entries) {
     continue;
   }
 
-  const expected = transform(readFileSync(webAbs, 'utf8'), native);
+  const source = readFileSync(webAbs, 'utf8');
+  // `import.meta` is a compile-time error under Hermes, and the whole point of src/lib/env.ts is
+  // that it is the one web module allowed to read it. A copy that reaches for it is a file that
+  // should have been given a platform seam instead, so fail loudly rather than copy it in.
+  if (source.includes('import.meta')) {
+    reachedForImportMeta.push(web);
+    continue;
+  }
+  const expected = transform(source, native);
   const actual = existsSync(nativeAbs) ? readFileSync(nativeAbs, 'utf8') : null;
   if (actual === expected) continue;
 
   if (check) {
     drifted.push(actual === null ? `${native} (not copied yet)` : native);
   } else {
+    // A new manifest entry may be the first file in its directory.
+    mkdirSync(dirname(nativeAbs), { recursive: true });
     writeFileSync(nativeAbs, expected);
     written += 1;
   }
@@ -224,6 +248,11 @@ if (!check) {
   console.log(`sync-engines: ${written} file(s) written, ${entries.length - written} already in sync.`);
 }
 
+if (reachedForImportMeta.length) {
+  console.error('\nsync-engines: these web sources read import.meta and cannot be copied:');
+  for (const m of reachedForImportMeta) console.error(`  - ${m}`);
+  console.error('Give the module a platform seam (see src/lib/env.ts) rather than copying it.');
+}
 if (missing.length) {
   console.error('\nsync-engines: web sources this manifest expects are gone:');
   for (const m of missing) console.error(`  - ${m}`);
@@ -238,5 +267,5 @@ if (drifted.length) {
   console.error('\nRun `npm run sync` to re-derive them from ../physiology-app.');
 }
 
-if (drifted.length || missing.length || orphans.length) process.exit(1);
+if (drifted.length || missing.length || orphans.length || reachedForImportMeta.length) process.exit(1);
 if (check) console.log(`sync-engines: ${entries.length} copied file(s) all in sync with ../physiology-app.`);
