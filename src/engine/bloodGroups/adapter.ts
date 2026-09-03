@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { bloodGroupsContent } from './content';
 import { bloodGroupsNativeLoopConfig } from './nativeLoopConfig';
 import { buildBloodGroupsPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<BloodInternalState, BloodInputs, BloodDerive
   labels: BLOOD_PRESET_LABELS,
   order: BLOOD_PRESET_ORDER,
   questions: BLOOD_QUESTIONS,
+  content: bloodGroupsContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

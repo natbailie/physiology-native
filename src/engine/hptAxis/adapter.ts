@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { hptAxisContent } from './content';
 import { hptAxisNativeLoopConfig } from './nativeLoopConfig';
 import { buildHptPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<HptState, HptInputs, HptDerived, HptHistoryP
   labels: HPT_PRESET_LABELS,
   order: HPT_PRESET_ORDER,
   questions: HPT_QUESTIONS,
+  content: hptAxisContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Acute illness', onPress: () => perturb((s) => perturbAcuteIllness(s, 1)), variant: 'impulse' },

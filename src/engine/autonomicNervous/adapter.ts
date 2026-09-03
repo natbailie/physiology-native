@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { autonomicNervousContent } from './content';
 import { autonomicNervousNativeLoopConfig } from './nativeLoopConfig';
 import { buildAutonomicNervousPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<AnsState, AnsInputs, AnsDerived, AnsHistoryP
   labels: ANS_PRESET_LABELS,
   order: ANS_PRESET_ORDER,
   questions: ANS_QUESTIONS,
+  content: autonomicNervousContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

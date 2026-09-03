@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { inflammationContent } from './content';
 import { inflammationNativeLoopConfig } from './nativeLoopConfig';
 import { buildInflammationPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<InflammationInternalState, InflammationInput
   labels: INFLAMMATION_PRESET_LABELS,
   order: INFLAMMATION_PRESET_ORDER,
   questions: INFLAMMATION_QUESTIONS,
+  content: inflammationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'New insult', onPress: () => perturb((s) => perturbNewInsult(s, 50)), variant: 'impulse' },

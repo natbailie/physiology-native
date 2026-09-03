@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { coagulationContent } from './content';
 import { coagulationNativeLoopConfig } from './nativeLoopConfig';
 import { buildCoagulationPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<CoagState, CoagInputs, CoagDerived, CoagHist
   labels: COAG_PRESET_LABELS,
   order: COAG_PRESET_ORDER,
   questions: COAGULATION_QUESTIONS,
+  content: coagulationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Injury', onPress: () => perturb((s) => perturbInjury(s, 1)), variant: 'impulse' },

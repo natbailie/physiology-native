@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { hearingContent } from './content';
 import { hearingNativeLoopConfig } from './nativeLoopConfig';
 import { buildHearingPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<HearingInternalState, HearingInputs, Hearing
   labels: HEARING_PRESET_LABELS,
   order: HEARING_PRESET_ORDER,
   questions: HEARING_QUESTIONS,
+  content: hearingContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Noise exposure', onPress: () => perturb((s) => perturbNoiseExposure(s)), variant: 'impulse' },

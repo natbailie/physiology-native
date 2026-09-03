@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { hpaAxisContent } from './content';
 import { hpaAxisNativeLoopConfig } from './nativeLoopConfig';
 import { buildHpaPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<HpaState, HpaInputs, HpaDerived, HpaHistoryP
   labels: HPA_PRESET_LABELS,
   order: HPA_PRESET_ORDER,
   questions: HPA_QUESTIONS,
+  content: hpaAxisContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Acute stressor', onPress: () => perturb((s) => perturbAcuteStressor(s, 110)), variant: 'impulse' },

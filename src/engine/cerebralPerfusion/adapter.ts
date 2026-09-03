@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { cerebralPerfusionContent } from './content';
 import { cerebralPerfusionNativeLoopConfig } from './nativeLoopConfig';
 import { buildCerebralPerfusionPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<CerebralInternalState, CerebralInputs, Cereb
   labels: CEREBRAL_PRESET_LABELS,
   order: CEREBRAL_PRESET_ORDER,
   questions: CEREBRAL_QUESTIONS,
+  content: cerebralPerfusionContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Drain CSF', onPress: () => perturb((s) => perturbDrainCsf(s, 120)), variant: 'impulse' },

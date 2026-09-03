@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { respiratoryContent } from './content';
 import { respiratoryNativeLoopConfig } from './nativeLoopConfig';
 import { buildRespiratoryPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<RespState, RespInputs, RespDerived, RespHist
   labels: RESP_PRESET_LABELS,
   order: RESP_PRESET_ORDER,
   questions: RESPIRATORY_QUESTIONS,
+  content: respiratoryContent,
   presetActiveKey: (id: string) => id,
   actions: (_, perturb) => [
     { label: 'Airway obstruction', onPress: () => perturb((s) => perturbAirwayObstruction(s as RespState)), variant: 'impulse' },

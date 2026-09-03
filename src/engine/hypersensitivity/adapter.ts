@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { hypersensitivityContent } from './content';
 import { hypersensitivityNativeLoopConfig } from './nativeLoopConfig';
 import { buildHypersensitivityPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<HypersensitivityState, HypersensitivityInput
   labels: HYPERSENSITIVITY_PRESET_LABELS,
   order: HYPERSENSITIVITY_PRESET_ORDER,
   questions: HYPERSENSITIVITY_QUESTIONS,
+  content: hypersensitivityContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Challenge', onPress: () => perturb((s) => perturbChallenge(s, 100)), variant: 'impulse' },

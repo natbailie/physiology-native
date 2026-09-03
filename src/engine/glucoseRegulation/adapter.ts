@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { glucoseRegulationContent } from './content';
 import { glucoseNativeLoopConfig } from './nativeLoopConfig';
 import { buildGlucosePresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<GlucoseState, GlucoseInputs, GlucoseDerived,
   labels: GLUCOSE_PRESET_LABELS,
   order: GLUCOSE_PRESET_ORDER,
   questions: GLUCOSE_QUESTIONS,
+  content: glucoseRegulationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Eat meal', onPress: () => perturb((s) => perturbEatMeal(s as GlucoseState, (inputs as GlucoseInputs).mealCarbLoadGrams)), variant: 'impulse' },

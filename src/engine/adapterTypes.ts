@@ -1,6 +1,7 @@
 import type { ModulePresentation, PresentationContext } from '../presentation/types';
 import type { NativeLoopConfig } from '../hooks/useNativeEngineLoop';
 import type { ModuleQuestion } from '../shared/assessment/types';
+import type { ExplainerContent } from '../shared/explainer/types';
 
 /**
  * How one module is driven on the native side.
@@ -35,6 +36,14 @@ export interface ModuleAdapter<TState, TInputs, TDerived, THistoryPoint> {
    */
    
   questions: readonly ModuleQuestion<any, any, any>[];
+  /**
+   * The module's explainer prose, file-synced from the web project's `content.ts`.
+   *
+   * It reaches the adapter rather than the screen because the export name is per module
+   * (`cardiorenalContent`, `shockStatesContent`), which is exactly the variance an adapter exists
+   * to absorb.
+   */
+  content: ExplainerContent;
   presetActiveKey: (id: string) => string;
   actions: (
     inputs: TInputs,

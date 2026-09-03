@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { calciumHomeostasisContent } from './content';
 import { calciumHomeostasisNativeLoopConfig } from './nativeLoopConfig';
 import { buildCalciumHomeostasisPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<CalciumState, CalciumInputs, CalciumDerived,
   labels: CALCIUM_PRESET_LABELS,
   order: CALCIUM_PRESET_ORDER,
   questions: CALCIUM_QUESTIONS,
+  content: calciumHomeostasisContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Calcium infusion', onPress: () => perturb((s) => perturbCalciumInfusion(s, 25)), variant: 'impulse' },

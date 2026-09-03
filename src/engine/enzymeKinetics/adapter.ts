@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { enzymeKineticsContent } from './content';
 import { enzymeKineticsNativeLoopConfig } from './nativeLoopConfig';
 import { buildEnzymeKineticsPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<KineticsInternalState, KineticsInputs, Kinet
   labels: KINETICS_PRESET_LABELS,
   order: KINETICS_PRESET_ORDER,
   questions: KINETICS_QUESTIONS,
+  content: enzymeKineticsContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

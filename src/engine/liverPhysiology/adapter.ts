@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { liverPhysiologyContent } from './content';
 import { liverPhysiologyNativeLoopConfig } from './nativeLoopConfig';
 import { buildLiverPhysiologyPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<LiverInternalState, LiverInputs, LiverDerive
   labels: LIVER_PRESET_LABELS,
   order: LIVER_PRESET_ORDER,
   questions: LIVER_QUESTIONS,
+  content: liverPhysiologyContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Haemolytic episode', onPress: () => perturb((s) => perturbHaemolyticEpisode(s)), variant: 'impulse' },

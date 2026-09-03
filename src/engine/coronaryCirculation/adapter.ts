@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { coronaryCirculationContent } from './content';
 import { coronaryCirculationNativeLoopConfig } from './nativeLoopConfig';
 import { buildCoronaryCirculationPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<CoronaryInternalState, CoronaryInputs, Coron
   labels: CORONARY_PRESET_LABELS,
   order: CORONARY_PRESET_ORDER,
   questions: CORONARY_QUESTIONS,
+  content: coronaryCirculationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Exertion', onPress: () => perturb((s) => perturbExertion(s)), variant: 'impulse' },

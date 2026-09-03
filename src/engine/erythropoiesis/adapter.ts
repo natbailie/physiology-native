@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { erythropoiesisContent } from './content';
 import { erythropoiesisNativeLoopConfig } from './nativeLoopConfig';
 import { buildErythropoiesisPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<ErythroState, ErythroInputs, ErythroDerived,
   labels: ERYTHRO_PRESET_LABELS,
   order: ERYTHRO_PRESET_ORDER,
   questions: ERYTHROPOIESIS_QUESTIONS,
+  content: erythropoiesisContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Acute blood loss', onPress: () => perturb((s) => perturbAcuteBloodLoss(s, 40)), variant: 'impulse' },

@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { venousReturnContent } from './content';
 import { venousReturnNativeLoopConfig } from './nativeLoopConfig';
 import { buildVenousReturnPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<VenousReturnState, VenousReturnInputs, Venou
   labels: VENOUS_RETURN_PRESET_LABELS,
   order: VENOUS_RETURN_PRESET_ORDER,
   questions: VENOUS_RETURN_QUESTIONS,
+  content: venousReturnContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Haemorrhage', onPress: () => perturb((s) => perturbHemorrhage(s, 1000)), variant: 'impulse' },

@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { digestionAbsorptionContent } from './content';
 import { digestionAbsorptionNativeLoopConfig } from './nativeLoopConfig';
 import { buildDigestionAbsorptionPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<DigestionInternalState, DigestionInputs, Dig
   labels: DIGESTION_PRESET_LABELS,
   order: DIGESTION_PRESET_ORDER,
   questions: DIGESTION_QUESTIONS,
+  content: digestionAbsorptionContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Eat a meal', onPress: () => perturb((s) => perturbDigest_EatMeal(s)), variant: 'impulse' },

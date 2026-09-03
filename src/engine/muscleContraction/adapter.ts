@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { muscleContractionContent } from './content';
 import { muscleContractionNativeLoopConfig } from './nativeLoopConfig';
 import { buildMuscleContractionPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<MuscleState, MuscleInputs, MuscleDerived, Mu
   labels: MUSCLE_PRESET_LABELS,
   order: MUSCLE_PRESET_ORDER,
   questions: MUSCLE_QUESTIONS,
+  content: muscleContractionContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Stimulate', onPress: () => perturb((s) => perturbMuscleStimulate(s)), variant: 'impulse' },

@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { neuromuscularJunctionContent } from './content';
 import { neuromuscularJunctionNativeLoopConfig } from './nativeLoopConfig';
 import { buildNeuromuscularJunctionPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<NmjState, NmjInputs, NmjDerived, NmjHistoryP
   labels: NMJ_PRESET_LABELS,
   order: NMJ_PRESET_ORDER,
   questions: NMJ_QUESTIONS,
+  content: neuromuscularJunctionContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Tetanic burst', onPress: () => perturb((s) => perturbTetanicBurst(s)), variant: 'impulse' },

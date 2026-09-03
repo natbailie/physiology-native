@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { respiratoryMechanicsContent } from './content';
 import { respiratoryMechanicsNativeLoopConfig } from './nativeLoopConfig';
 import { buildRespiratoryMechanicsPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<RespMechState, RespMechInputs, RespMechDeriv
   labels: RESP_MECH_PRESET_LABELS,
   order: RESP_MECH_PRESET_ORDER,
   questions: RESP_MECH_QUESTIONS,
+  content: respiratoryMechanicsContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'FVC manoeuvre', onPress: () => perturb((s) => perturbFvcManeuver(s)), variant: 'impulse' },

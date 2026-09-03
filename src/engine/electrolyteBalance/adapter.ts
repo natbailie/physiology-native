@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { electrolyteBalanceContent } from './content';
 import { electrolyteBalanceNativeLoopConfig } from './nativeLoopConfig';
 import { buildElectrolyteBalancePresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<ElectrolyteState, ElectrolyteInputs, Electro
   labels: ELECTROLYTE_PRESET_LABELS,
   order: ELECTROLYTE_PRESET_ORDER,
   questions: ELECTROLYTE_QUESTIONS,
+  content: electrolyteBalanceContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Give insulin', onPress: () => perturb((s) => perturbElectrolyteGiveInsulin(s, 0.22)), variant: 'impulse' },

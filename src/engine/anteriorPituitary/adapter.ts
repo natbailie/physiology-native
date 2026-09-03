@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { anteriorPituitaryContent } from './content';
 import { anteriorPituitaryNativeLoopConfig } from './nativeLoopConfig';
 import { buildAnteriorPituitaryPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<PituitaryInternalState, PituitaryInputs, Pit
   labels: PITUITARY_PRESET_LABELS,
   order: PITUITARY_PRESET_ORDER,
   questions: PITUITARY_QUESTIONS,
+  content: anteriorPituitaryContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Glucose load', onPress: () => perturb((s) => perturbGlucoseLoad(s)), variant: 'impulse' },

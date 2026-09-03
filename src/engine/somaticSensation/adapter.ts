@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { somaticSensationContent } from './content';
 import { somaticSensationNativeLoopConfig } from './nativeLoopConfig';
 import { buildSomaticSensationPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<SomaticInternalState, SomaticInputs, Somatic
   labels: SOMATIC_PRESET_LABELS,
   order: SOMATIC_PRESET_ORDER,
   questions: SOMATIC_QUESTIONS,
+  content: somaticSensationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Opioid bolus', onPress: () => perturb((s) => perturbOpioidBolus(s)), variant: 'impulse' },

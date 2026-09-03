@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { membranePotentialsContent } from './content';
 import { membranePotentialsNativeLoopConfig } from './nativeLoopConfig';
 import { buildMembranePotentialsPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<MembraneState, MembraneInputs, MembraneDeriv
   labels: MEMBRANE_PRESET_LABELS,
   order: MEMBRANE_PRESET_ORDER,
   questions: MEMBRANE_QUESTIONS,
+  content: membranePotentialsContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Stimulate', onPress: () => perturb((s) => perturbMembraneStimulate(s, 1)), variant: 'impulse' },

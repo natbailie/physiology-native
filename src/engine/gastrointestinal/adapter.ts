@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { gastrointestinalContent } from './content';
 import { gastrointestinalNativeLoopConfig } from './nativeLoopConfig';
 import { buildGastrointestinalPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<GiState, GiInputs, GiDerived, GiHistoryPoint
   labels: GI_PRESET_LABELS,
   order: GI_PRESET_ORDER,
   questions: GI_QUESTIONS,
+  content: gastrointestinalContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Eat a meal', onPress: () => perturb((s) => perturbGI_EatMeal(s)), variant: 'impulse' },

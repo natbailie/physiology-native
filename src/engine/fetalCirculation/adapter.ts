@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { fetalCirculationContent } from './content';
 import { fetalCirculationNativeLoopConfig } from './nativeLoopConfig';
 import { buildFetalCirculationPresentation } from './presentation';
 import {
@@ -31,6 +32,7 @@ export const adapter: ModuleAdapter<FetalState, FetalInputs, FetalDerived, Fetal
   order: FETAL_PRESET_ORDER,
   questions: FETAL_QUESTIONS,
   settleOverrides: FETAL_PRESET_SETTLE_SECONDS,
+  content: fetalCirculationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'First breath', onPress: () => perturb((s) => perturbFirstBreath(s)), variant: 'impulse' },

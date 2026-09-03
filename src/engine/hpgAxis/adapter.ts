@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { hpgAxisContent } from './content';
 import { hpgAxisNativeLoopConfig } from './nativeLoopConfig';
 import { buildHpgPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<HpgState, HpgInputs, HpgDerived, HpgHistoryP
   labels: HPG_PRESET_LABELS,
   order: HPG_PRESET_ORDER,
   questions: HPG_QUESTIONS,
+  content: hpgAxisContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

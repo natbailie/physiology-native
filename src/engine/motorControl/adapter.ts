@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { motorControlContent } from './content';
 import { motorControlNativeLoopConfig } from './nativeLoopConfig';
 import { buildMotorControlPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<MotorInternalState, MotorInputs, MotorDerive
   labels: MOTOR_PRESET_LABELS,
   order: MOTOR_PRESET_ORDER,
   questions: MOTOR_QUESTIONS,
+  content: motorControlContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Levodopa', onPress: () => perturb((s) => perturbLevodopaDose(s)), variant: 'impulse' },

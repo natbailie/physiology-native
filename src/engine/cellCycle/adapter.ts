@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { cellCycleContent } from './content';
 import { cellCycleNativeLoopConfig } from './nativeLoopConfig';
 import { buildCellCyclePresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<CellCycleInternalState, CellCycleInputs, Cel
   labels: CELL_CYCLE_PRESET_LABELS,
   order: CELL_CYCLE_PRESET_ORDER,
   questions: CELL_CYCLE_QUESTIONS,
+  content: cellCycleContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

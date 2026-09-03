@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { cardiorenalContent } from './content';
 import { cardiorenalNativeLoopConfig } from './nativeLoopConfig';
 import { buildCardiorenalPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<SimState, SimInputs, DerivedValues, HistoryP
   labels: CARDIORENAL_PRESET_LABELS,
   order: CARDIORENAL_PRESET_ORDER,
   questions: CARDIORENAL_QUESTIONS,
+  content: cardiorenalContent,
   presetActiveKey: (id: string) => id,
   actions: (_, perturb) => [
     { label: 'Haemorrhage', onPress: () => perturb((s) => perturbBloodVolume(s as SimState, 0.7)), variant: 'impulse' },

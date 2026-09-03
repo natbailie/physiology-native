@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { cardiacElectroContent } from './content';
 import { cardiacElectroNativeLoopConfig } from './nativeLoopConfig';
 import { buildCardiacElectroPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<CardiacState, CardiacInputs, CardiacDerived,
   labels: CARDIAC_PRESET_LABELS,
   order: CARDIAC_PRESET_ORDER,
   questions: CARDIAC_QUESTIONS,
+  content: cardiacElectroContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

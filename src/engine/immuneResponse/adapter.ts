@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { immuneResponseContent } from './content';
 import { immuneResponseNativeLoopConfig } from './nativeLoopConfig';
 import { buildImmuneResponsePresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<ImmuneState, ImmuneInputs, ImmuneDerived, Im
   labels: IMMUNE_PRESET_LABELS,
   order: IMMUNE_PRESET_ORDER,
   questions: IMMUNE_QUESTIONS,
+  content: immuneResponseContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Infect', onPress: () => perturb((s) => perturbInfect(s)), variant: 'impulse' },

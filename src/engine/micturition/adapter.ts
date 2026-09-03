@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { micturitionContent } from './content';
 import { micturitionNativeLoopConfig } from './nativeLoopConfig';
 import { buildMicturitionPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<MicturitionInternalState, MicturitionInputs,
   labels: MICTURITION_PRESET_LABELS,
   order: MICTURITION_PRESET_ORDER,
   questions: MICTURITION_QUESTIONS,
+  content: micturitionContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

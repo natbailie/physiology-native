@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { capillaryExchangeContent } from './content';
 import { capillaryExchangeNativeLoopConfig } from './nativeLoopConfig';
 import { buildCapillaryExchangePresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<CapillaryState, CapillaryInputs, CapillaryDe
   labels: CAPILLARY_PRESET_LABELS,
   order: CAPILLARY_PRESET_ORDER,
   questions: CAPILLARY_QUESTIONS,
+  content: capillaryExchangeContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Albumin infusion', onPress: () => perturb((s) => perturbAlbuminInfusion(s, 500)), variant: 'impulse' },

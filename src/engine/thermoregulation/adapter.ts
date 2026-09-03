@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { thermoregulationContent } from './content';
 import { thermoregulationNativeLoopConfig } from './nativeLoopConfig';
 import { buildThermoregulationPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<ThermoInternalState, ThermoInputs, ThermoDer
   labels: THERMO_PRESET_LABELS,
   order: THERMO_PRESET_ORDER,
   questions: THERMO_QUESTIONS,
+  content: thermoregulationContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Antipyretic', onPress: () => perturb((s) => perturbGiveAntipyretic(s)), variant: 'impulse' },

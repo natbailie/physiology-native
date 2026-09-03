@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { pregnancyContent } from './content';
 import { pregnancyNativeLoopConfig } from './nativeLoopConfig';
 import { buildPregnancyPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<PregnancyInternalState, PregnancyInputs, Pre
   labels: PREGNANCY_PRESET_LABELS,
   order: PREGNANCY_PRESET_ORDER,
   questions: PREGNANCY_QUESTIONS,
+  content: pregnancyContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Start labour', onPress: () => perturb((s) => perturbStartLabour(s)), variant: 'impulse' },

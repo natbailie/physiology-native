@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { adrenalCortexContent } from './content';
 import { adrenalCortexNativeLoopConfig } from './nativeLoopConfig';
 import { buildAdrenalCortexPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<AdrenalCortexInternalState, AdrenalCortexInp
   labels: ADRENAL_PRESET_LABELS,
   order: ADRENAL_PRESET_ORDER,
   questions: ADRENAL_QUESTIONS,
+  content: adrenalCortexContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

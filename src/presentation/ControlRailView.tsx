@@ -1,9 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import Slider from '@react-native-community/slider';
 import type { ControlSpec } from './types';
+import { lookupColor } from './palette';
 
 /* ------------------------------------------------------------------ */
-/*  Slider (using a simple numeric stepper for now)                    */
+/*  Slider                                                             */
 /* ------------------------------------------------------------------ */
 
 interface SliderProps {
@@ -15,9 +17,21 @@ interface SliderProps {
   unit?: string;
   format?: 'decimal' | 'percent';
   onChange: (value: number) => void;
+  /** The module's accent, so the filled part of the track reads as the module's colour. */
+  accent: string;
 }
 
-function Stepper({ label, value, min, max, step, unit, format, onChange }: SliderProps) {
+/**
+ * A real slider, with the +/- as fine adjustment either side of it.
+ *
+ * These were steppers alone, which is a lot of taps: `blood volume` spans 3000-7000 mL in steps
+ * of 50, so reaching an extreme took eighty presses. The web has had a drag control throughout,
+ * and a control a learner will not sweep is a feedback loop they will not see.
+ *
+ * The +/- are Pressables rather than `<Text onPress>` so they take hit-slop and show a pressed
+ * state; at 24pt the text glyphs alone were below the accessible touch target.
+ */
+function SliderControl({ label, value, min, max, step, unit, format, onChange, accent }: SliderProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const decrement = () => onChange(Math.max(min, +(value - step).toFixed(6)));
@@ -30,25 +44,42 @@ function Stepper({ label, value, min, max, step, unit, format, onChange }: Slide
       : Math.round(value).toString();
 
   return (
-    <View style={styles.sliderRow}>
-      <Text style={[styles.sliderLabel, isDark && styles.textLight]}>{label}</Text>
-      <View style={styles.stepperRow}>
-        <Text
-          style={[styles.stepperBtn, isDark && styles.stepperBtnDark]}
-          onPress={decrement}
-        >
-          −
-        </Text>
-        <Text style={[styles.sliderValue, isDark && styles.textLight]}>
-          {displayValue}{unit ? ` ${unit}` : ''}
-        </Text>
-        <Text
-          style={[styles.stepperBtn, isDark && styles.stepperBtnDark]}
-          onPress={increment}
-        >
-          +
-        </Text>
+    <View style={styles.sliderBlock}>
+      <View style={styles.sliderRow}>
+        <Text style={[styles.sliderLabel, isDark && styles.textLight]}>{label}</Text>
+        <View style={styles.stepperRow}>
+          <Pressable
+            onPress={decrement}
+            hitSlop={8}
+            accessibilityLabel={`Decrease ${label}`}
+            style={({ pressed }) => [styles.stepperBtnBox, pressed && styles.pressed]}
+          >
+            <Text style={[styles.stepperBtn, isDark && styles.stepperBtnDark]}>−</Text>
+          </Pressable>
+          <Text style={[styles.sliderValue, isDark && styles.textLight]}>
+            {displayValue}{unit ? ` ${unit}` : ''}
+          </Text>
+          <Pressable
+            onPress={increment}
+            hitSlop={8}
+            accessibilityLabel={`Increase ${label}`}
+            style={({ pressed }) => [styles.stepperBtnBox, pressed && styles.pressed]}
+          >
+            <Text style={[styles.stepperBtn, isDark && styles.stepperBtnDark]}>+</Text>
+          </Pressable>
+        </View>
       </View>
+      <Slider
+        value={value}
+        minimumValue={min}
+        maximumValue={max}
+        step={step}
+        onValueChange={onChange}
+        minimumTrackTintColor={accent}
+        maximumTrackTintColor={isDark ? '#334155' : '#e2e8f0'}
+        thumbTintColor={accent}
+        accessibilityLabel={label}
+      />
     </View>
   );
 }
@@ -101,12 +132,15 @@ interface ControlRailViewProps<Inputs> {
   controls: readonly ControlSpec<Inputs>[];
   inputs?: Inputs;
   onChange?: <K extends keyof Inputs>(key: K, value: Inputs[K]) => void;
+  /** The module's accent colour, for the filled part of each slider track. */
+  accent?: string;
 }
 
 export function ControlRailView<Inputs>({
   controls,
   inputs,
   onChange,
+  accent,
 }: ControlRailViewProps<Inputs>) {
   return (
     <View style={styles.rail}>
@@ -125,7 +159,7 @@ export function ControlRailView<Inputs>({
         }
         const value = inputs ? Number(inputs[spec.key]) : spec.min;
         return (
-          <Stepper
+          <SliderControl
             key={String(spec.key)}
             label={spec.label}
             value={value}
@@ -135,6 +169,7 @@ export function ControlRailView<Inputs>({
             unit={spec.unit}
             format={spec.format}
             onChange={(v) => onChange?.(spec.key as keyof Inputs, v as Inputs[keyof Inputs])}
+            accent={accent ?? lookupColor('artery') ?? '#64748b'}
           />
         );
       })}
@@ -144,6 +179,9 @@ export function ControlRailView<Inputs>({
 
 const styles = StyleSheet.create({
   rail: { gap: 12 },
+  sliderBlock: { gap: 2 },
+  stepperBtnBox: { paddingHorizontal: 4, paddingVertical: 2 },
+  pressed: { opacity: 0.5 },
   sliderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

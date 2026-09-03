@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { vestibularContent } from './content';
 import { vestibularNativeLoopConfig } from './nativeLoopConfig';
 import { buildVestibularPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<VestibularInternalState, VestibularInputs, V
   labels: VESTIBULAR_PRESET_LABELS,
   order: VESTIBULAR_PRESET_ORDER,
   questions: VESTIBULAR_QUESTIONS,
+  content: vestibularContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Perform Hallpike', onPress: () => perturb((s) => perturbPerformHallpike(s)), variant: 'impulse' },

@@ -7,6 +7,7 @@ import { ReadoutGridView } from '../../src/presentation/ReadoutGridView';
 import { TrendsView } from '../../src/presentation/TrendsView';
 import { ScenarioBar } from '../../src/presentation/ScenarioBar';
 import { PracticePanel } from '../../src/presentation/PracticePanel';
+import { ExplainerView } from '../../src/presentation/ExplainerView';
 import { useProgressStore } from '../../src/shared/assessment/useProgressStore';
 import { useNativeEngineLoop } from '../../src/hooks/useNativeEngineLoop';
 import { adapterLoaders } from '../../src/engine/adapters.generated';
@@ -169,7 +170,13 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
           />
         </>
       )}
-      <ControlRailView controls={presentation.controls} inputs={inputs} onChange={handleChange} />
+      <ControlRailView controls={presentation.controls} inputs={inputs} onChange={handleChange} accent={accent} />
+      <ExplainerView
+        content={adapter.content}
+        accent={accent}
+        onOpenScenario={applyPreset}
+        presetLabels={adapter.labels}
+      />
       <PracticePanel
          
         config={adapter.config as any}

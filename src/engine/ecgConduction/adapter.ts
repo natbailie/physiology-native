@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { ecgConductionContent } from './content';
 import { ecgConductionNativeLoopConfig } from './nativeLoopConfig';
 import { buildEcgConductionPresentation } from './presentation';
 import {
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<EcgState, EcgInputs, EcgDerived, EcgHistoryP
   labels: ECG_PRESET_LABELS,
   order: ECG_PRESET_ORDER,
   questions: ECG_QUESTIONS,
+  content: ecgConductionContent,
   presetActiveKey: (id: string) => id,
   actions: () => [],
 };

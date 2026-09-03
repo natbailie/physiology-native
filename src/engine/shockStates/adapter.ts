@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { shockStatesContent } from './content';
 import { shockStatesNativeLoopConfig } from './nativeLoopConfig';
 import { buildShockStatesPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<ShockState, ShockInputs, ShockDerived, Shock
   labels: SHOCK_PRESET_LABELS,
   order: SHOCK_PRESET_ORDER,
   questions: SHOCK_QUESTIONS,
+  content: shockStatesContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Haemorrhage', onPress: () => perturb((s) => perturbHaemorrhage(s, 1000)), variant: 'impulse' },

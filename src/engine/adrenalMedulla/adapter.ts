@@ -1,5 +1,6 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
+import { adrenalMedullaContent } from './content';
 import { adrenalMedullaNativeLoopConfig } from './nativeLoopConfig';
 import { buildAdrenalMedullaPresentation } from './presentation';
 import {
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<MedullaInternalState, MedullaInputs, Medulla
   labels: MEDULLA_PRESET_LABELS,
   order: MEDULLA_PRESET_ORDER,
   questions: MEDULLA_QUESTIONS,
+  content: adrenalMedullaContent,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Paroxysm', onPress: () => perturb((s) => perturbParoxysm(s)), variant: 'impulse' },
