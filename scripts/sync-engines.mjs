@@ -95,6 +95,8 @@ const ANCHORS = {
   '@/shared/assessment/types': 'src/shared/assessment/types',
   '@/shared/assessment/verifyQuestion': 'src/shared/assessment/verifyQuestion',
   '@/shared/assessment/verifyPattern': 'src/shared/assessment/verifyPattern',
+  '@/lib/supabase': 'src/lib/supabase',
+  '@/auth/AuthContext': 'src/auth/AuthContext',
   '@/shared/hooks/useEngineLoop': 'src/hooks/useNativeEngineLoop',
   // Every module's content.ts, and the tutor's corpus reader, take only the CONTENT SHAPE from
   // the web's ExplainerPanel — `import type { ExplainerContent }`. The shape lives in its own
@@ -147,6 +149,12 @@ function buildManifest() {
     { web: 'src/shared/assessment/weakness.ts', native: 'src/shared/assessment/weakness.ts' },
     { web: 'src/home/moduleRegistry.ts', native: 'src/home/moduleRegistry.ts' },
     { web: 'src/shared/components/ExplainerPanel/types.ts', native: 'src/shared/explainer/types.ts' },
+    { web: 'src/lib/supabase.ts', native: 'src/lib/supabase.ts' },
+    { web: 'src/auth/AuthContext.tsx', native: 'src/auth/AuthContext.tsx' },
+    { web: 'src/shared/assessment/supabaseProgressStore.ts', native: 'src/shared/assessment/supabaseProgressStore.ts' },
+    { web: 'src/shared/assessment/useProgressStore.ts', native: 'src/shared/assessment/useProgressStore.ts' },
+    { web: 'src/shared/assessment/useQuizSession.ts', native: 'src/shared/assessment/useQuizSession.ts' },
+    { web: 'src/billing/config.ts', native: 'src/billing/config.ts' },
   ];
 
   for (const [webModule, nativeModule] of Object.entries(MODULES)) {
@@ -175,6 +183,8 @@ const SYNCED_ONLY_DIRS = new Set([
   'src/shared/lib',
   'src/shared/explainer',
   'src/home',
+  'src/auth',
+  'src/billing',
 ]);
 
 /** Native files sitting in a synced directory with no web source — a rename or deletion upstream. */
