@@ -62,8 +62,12 @@ function FormulaCard({ formula, isDark }: { formula: FormulaDefinition; isDark: 
 
       {target && (
         <Link href={`/module/${target.id}`} asChild>
-          <Pressable style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
-            <Text style={styles.linkText}>Watch it move in {target.name}</Text>
+          <Pressable>
+            {({ pressed }) => (
+              <View style={[styles.link, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>Watch it move in {target.name}</Text>
+              </View>
+            )}
           </Pressable>
         </Link>
       )}

@@ -22,8 +22,12 @@ function ClassRow({ drugClass, isDark }: { drugClass: DrugClass; isDark: boolean
       <Text style={[styles.mechanism, isDark && styles.bodyDark]}>{drugClass.mechanism}</Text>
       {target && (
         <Link href={`/module/${target.id}`} asChild>
-          <Pressable style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
-            <Text style={styles.linkText}>See it act in {target.name}</Text>
+          <Pressable>
+            {({ pressed }) => (
+              <View style={[styles.link, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>See it act in {target.name}</Text>
+              </View>
+            )}
           </Pressable>
         </Link>
       )}

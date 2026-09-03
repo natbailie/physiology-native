@@ -41,8 +41,12 @@ function UtilityLinks({ isDark }: { isDark: boolean }) {
         { href: '/account', label: 'Account' },
       ].map((item) => (
         <Link key={item.href} href={item.href} asChild>
-          <Pressable style={({ pressed }) => [styles.utility, isDark && styles.utilityDark, pressed && styles.cardPressed]}>
-            <Text style={[styles.utilityText, isDark && styles.textLight]}>{item.label}</Text>
+          <Pressable>
+            {({ pressed }) => (
+              <View style={[styles.utility, isDark && styles.utilityDark, pressed && styles.cardPressed]}>
+                <Text style={[styles.utilityText, isDark && styles.textLight]}>{item.label}</Text>
+              </View>
+            )}
           </Pressable>
         </Link>
       ))}
