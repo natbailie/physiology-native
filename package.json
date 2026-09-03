@@ -12,8 +12,10 @@
     "lint": "eslint . --max-warnings 0",
     "sync": "node scripts/sync-engines.mjs",
     "sync:check": "node scripts/sync-engines.mjs --check",
-    "verify": "npm run sync:check && npm run typecheck && npm run lint",
-    "doctor": "expo-doctor"
+    "verify": "npm run sync:check && npm run adapters:check && npm run typecheck && npm run lint",
+    "doctor": "expo-doctor",
+    "generate:adapters": "node scripts/generate-adapters.mjs",
+    "adapters:check": "node scripts/generate-adapters.mjs --check"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
