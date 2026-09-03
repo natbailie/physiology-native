@@ -1,6 +1,7 @@
 import React from 'react';
 import { Circle, ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { OrganName } from './types';
+import { resolveColor } from './palette';
 
 /* ------------------------------------------------------------------ */
 /*  Organ shape paths (from the web project's shared organShapes.ts)   */
@@ -15,36 +16,22 @@ export const LUNG_PATH =
   'M0,-38 C18,-40 30,-14 28,14 C26,38 14,50 0,50 C-2,50 -4,49 -6,48 C-16,42 -24,26 -24,4 C-24,-20 -14,-38 0,-38 Z';
 
 /* ------------------------------------------------------------------ */
-/*  Colour resolution (shared palette)                                  */
+/*  Wash levels                                                        */
 /* ------------------------------------------------------------------ */
 
-const TOKEN_PALETTE: Record<string, string> = {
-  artery: '#dc2626',
-  vein: '#3b82f6',
-  glucose: '#22c55e',
-  insulin: '#eab308',
-  glucagon: '#f97316',
-  epinephrine: '#ef4444',
-  text: '#64748b',
-  kidney: '#8b5cf6',
-  kidneyDark: '#6d28d9',
-  o2: '#3b82f6',
-  co2: '#64748b',
-  ph: '#ec4899',
-  bicarbonate: '#06b6d4',
-  raas: '#ef4444',
-  anp: '#06b6d4',
-  sarcomere: '#8b5cf6',
-  baseline: '#94a3b8',
-  organ: '#f1f5f9',
-  organStroke: '#94a3b8',
-  glycogenFill: '#22c55e',
-};
+/** The web fills an organ body with a wash — its signal colour mixed towards transparent — and
+ * strokes the outline in that colour at full strength. These are the web's `--wash-*` steps, and
+ * they are applied as `fillOpacity` so the outline stays solid; a plain `opacity` would fade the
+ * stroke with the fill and lose the shape's edge. */
+const WASH_FAINT = 0.14;
+const WASH_SOFT = 0.22;
+const WASH = 0.32;
+const WASH_STRONG = 0.48;
 
-function fill(token: string | undefined, def: string): string {
-  if (!token) return def;
-  return TOKEN_PALETTE[token] ?? def;
-}
+/** The web's shared diagram-text classes: `organLabel` names a structure in `--text`, and the
+ * smaller in-diagram detail labels sit in `--text-dim`. */
+const ORGAN_NAME = '#0f172a';
+const ORGAN_DETAIL = '#475569';
 
 /* ------------------------------------------------------------------ */
 /*  Organ components                                                    */
@@ -68,12 +55,12 @@ function Pancreas({ x, y, params }: OrganProps) {
   const alphaR = 4 + glucagonLevel * 3;
   return (
     <G transform={"translate(" + x + ", " + y + ")"}>
-      <Path d={pancreasShape()} fill={fill('organ', '#f1f5f9')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} />
-      <Circle cx={-12} cy={-3} r={betaR} fill={fill('insulin', '#eab308')} />
-      <Circle cx={12} cy={-1} r={alphaR} fill={fill('glucagon', '#f97316')} />
-      <SvgText x={-18} y={-12} fontSize={10} textAnchor="middle" fill={fill('text', '#64748b')}>β</SvgText>
-      <SvgText x={18} y={-10} fontSize={10} textAnchor="middle" fill={fill('text', '#64748b')}>α</SvgText>
-      <SvgText x={0} y={26} fontSize={12} textAnchor="middle" fill={fill('text', '#64748b')}>Pancreas</SvgText>
+      <Path d={pancreasShape()} fill={resolveColor('insulin')} fillOpacity={WASH_FAINT} stroke={resolveColor('insulin')} strokeWidth={2} />
+      <Circle cx={-12} cy={-3} r={betaR} fill={resolveColor('insulin')} />
+      <Circle cx={12} cy={-1} r={alphaR} fill={resolveColor('glucagon')} />
+      <SvgText x={-18} y={-12} fontSize={9} textAnchor="middle" fill={ORGAN_DETAIL}>β</SvgText>
+      <SvgText x={18} y={-10} fontSize={9} textAnchor="middle" fill={ORGAN_DETAIL}>α</SvgText>
+      <SvgText x={0} y={26} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Pancreas</SvgText>
     </G>
   );
 }
@@ -94,17 +81,17 @@ function Liver({ x, y, params }: OrganProps) {
           <Path d={LIVER_PATH} />
         </ClipPath>
       </Defs>
-      <Path d={LIVER_PATH} fill={fill('organ', '#f1f5f9')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} />
+      <Path d={LIVER_PATH} fill={resolveColor('glucagon')} fillOpacity={WASH_FAINT} stroke={resolveColor('glucagon')} strokeWidth={2} />
       <Rect
         x={-42}
         y={LIVER_BOTTOM - fillHeight}
         width={84}
         height={fillHeight}
-        fill={fill('glycogenFill', '#22c55e')}
+        fill={resolveColor('glycogenFill')}
         clipPath={`url(#${clipId})`}
-        opacity={glycogenReserve > 0 ? 0.75 + hepaticOutput * 0.2 : 0}
+        fillOpacity={glycogenReserve > 0 ? WASH_STRONG + hepaticOutput * 0.12 : 0}
       />
-      <SvgText x={0} y={44} fontSize={12} textAnchor="middle" fill={fill('text', '#64748b')}>Liver</SvgText>
+      <SvgText x={0} y={44} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Liver</SvgText>
     </G>
   );
 }
@@ -118,13 +105,13 @@ function Heart({ x, y, params }: OrganProps) {
     <G transform={"translate(" + x + ", " + y + ")"}>
       <Path
         d={HEART_PATH}
-        fill={fill('artery', '#dc2626')}
-        stroke={fill('organStroke', '#94a3b8')}
-        strokeWidth={1.2}
+        fill={resolveColor('artery')}
+        fillOpacity={WASH_SOFT}
+        stroke={resolveColor('artery')}
+        strokeWidth={2.5}
         transform={`scale(${heartScale})`}
-        opacity={0.9}
       />
-      <SvgText x={-34} y={68} fontSize={12} textAnchor="middle" fill={fill('text', '#64748b')}>Heart</SvgText>
+      <SvgText x={-34} y={68} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Heart</SvgText>
     </G>
   );
 }
@@ -136,14 +123,14 @@ function Kidneys({ x, y, params }: OrganProps) {
   return (
     <G transform={"translate(" + x + ", " + y + ")"}>
       <G transform="translate(0, -22)">
-        <Path d={KIDNEY_PATH} fill={fill('kidney', '#8b5cf6')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} opacity={0.5 + gfrIntensity * 0.4} />
+        <Path d={KIDNEY_PATH} fill={resolveColor('kidney')} fillOpacity={gfrIntensity * WASH} stroke={resolveColor('kidney')} strokeWidth={2} />
       </G>
       <G transform="translate(0, 24) scale(-1, 1)">
-        <Path d={KIDNEY_PATH} fill={fill('kidney', '#8b5cf6')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} opacity={0.5 + gfrIntensity * 0.4} />
+        <Path d={KIDNEY_PATH} fill={resolveColor('kidney')} fillOpacity={gfrIntensity * WASH} stroke={resolveColor('kidney')} strokeWidth={2} />
       </G>
-      <Path d="M0,68 L0,96" stroke={fill('kidney', '#8b5cf6')} strokeWidth={2} opacity={urineOpacity} />
-      <SvgText x={14} y={90} fontSize={10} fill={fill('text', '#64748b')}>urine</SvgText>
-      <SvgText x={-20} y={112} fontSize={12} textAnchor="middle" fill={fill('text', '#64748b')}>Kidneys</SvgText>
+      <Path d="M0,68 L0,96" stroke={resolveColor('urine')} strokeWidth={2.5} strokeDasharray="2,6" strokeLinecap="round" opacity={urineOpacity} />
+      <SvgText x={14} y={90} fontSize={9} fill={ORGAN_DETAIL}>urine</SvgText>
+      <SvgText x={-20} y={112} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Kidneys</SvgText>
     </G>
   );
 }
@@ -160,13 +147,15 @@ function Lungs({ x, y, params }: OrganProps) {
   const breathRate = params.breathRate ?? 14;
   const ventDepth = params.ventDepth ?? 1;
   const deadUnits = Math.round((params.vqMismatch ?? 0) * ALVEOLAR_UNITS.length);
+  // Rate and depth compose, as they do on the web: the breath-rate term stands in for the
+  // `breathe` keyframe animation, and vent depth scales the lungs about their own centre.
   const breathScale = 1 + Math.min(Math.max(breathRate - 14, 0), 46) / 46 * 0.03;
   return (
     <G transform={"translate(" + x + ", " + y + ")"}>
-      <Path d="M0,-56 L0,-8" stroke={fill('organStroke', '#94a3b8')} strokeWidth={3} />
-      <G transform={`scale(${breathScale.toFixed(3)})`}>
-        <Path d={LUNG_PATH} fill={fill('o2', '#3b82f6')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} transform="translate(-20, 0)" opacity={0.25 + ventDepth * 0.5} />
-        <Path d={LUNG_PATH} fill={fill('o2', '#3b82f6')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} transform="translate(20, 0) scale(-1, 1)" opacity={0.25 + ventDepth * 0.5} />
+      <Path d="M0,-56 L0,-8" stroke={resolveColor('text')} strokeWidth={2} />
+      <G transform={`scale(${(breathScale * ventDepth).toFixed(3)})`}>
+        <Path d={LUNG_PATH} fill={resolveColor('o2')} fillOpacity={WASH_SOFT} stroke={resolveColor('o2')} strokeWidth={2.5} transform="translate(-20, 0)" />
+        <Path d={LUNG_PATH} fill={resolveColor('o2')} fillOpacity={WASH_SOFT} stroke={resolveColor('o2')} strokeWidth={2.5} transform="translate(20, 0) scale(-1, 1)" />
         {[-20, 20].map((side) =>
           ALVEOLAR_UNITS.map((unit, index) => (
             <Circle
@@ -174,12 +163,16 @@ function Lungs({ x, y, params }: OrganProps) {
               cx={side + unit.x * (side < 0 ? 1 : -1)}
               cy={unit.y}
               r={4}
-              fill={index < deadUnits ? fill('co2', '#64748b') : fill('o2', '#3b82f6')}
+              fill={index < deadUnits ? 'none' : resolveColor('o2')}
+              fillOpacity={index < deadUnits ? undefined : 0.55}
+              stroke={index < deadUnits ? resolveColor('co2') : undefined}
+              strokeWidth={index < deadUnits ? 1.6 : undefined}
+              strokeDasharray={index < deadUnits ? '2,2' : undefined}
             />
           )),
         )}
       </G>
-      <SvgText x={0} y={66} fontSize={12} textAnchor="middle" fill={fill('text', '#64748b')}>Lungs</SvgText>
+      <SvgText x={0} y={66} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Lungs</SvgText>
     </G>
   );
 }
@@ -189,12 +182,12 @@ function RenalCompensation({ x, y, params }: OrganProps) {
   return (
     <G transform={"translate(" + x + ", " + y + ")"}>
       <G transform="translate(0, -22)">
-        <Path d={KIDNEY_PATH} fill={fill('bicarbonate', '#06b6d4')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} opacity={0.3 + hco3Intensity * 0.4} />
+        <Path d={KIDNEY_PATH} fill={resolveColor('bicarb')} fillOpacity={hco3Intensity * WASH} stroke={resolveColor('bicarb')} strokeWidth={2} />
       </G>
       <G transform="translate(0, 24) scale(-1, 1)">
-        <Path d={KIDNEY_PATH} fill={fill('bicarbonate', '#06b6d4')} stroke={fill('organStroke', '#94a3b8')} strokeWidth={1.2} opacity={0.3 + hco3Intensity * 0.4} />
+        <Path d={KIDNEY_PATH} fill={resolveColor('bicarb')} fillOpacity={hco3Intensity * WASH} stroke={resolveColor('bicarb')} strokeWidth={2} />
       </G>
-      <SvgText x={-20} y={54} fontSize={12} textAnchor="middle" fill={fill('text', '#64748b')}>Kidneys</SvgText>
+      <SvgText x={-20} y={54} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Kidneys</SvgText>
     </G>
   );
 }
@@ -204,8 +197,8 @@ function RenalCompensation({ x, y, params }: OrganProps) {
 function Placeholder({ x, y, name }: OrganProps & { name: string }) {
   return (
     <G transform={"translate(" + x + ", " + y + ")"}>
-      <Circle cx={0} cy={0} r={24} fill={fill('baseline', '#94a3b8')} opacity={0.3} />
-      <SvgText x={0} y={4} fontSize={11} textAnchor="middle" fill="#000">{name}</SvgText>
+      <Circle cx={0} cy={0} r={24} fill={resolveColor('baseline')} opacity={0.3} />
+      <SvgText x={0} y={4} fontSize={11} textAnchor="middle" fill={ORGAN_NAME}>{name}</SvgText>
     </G>
   );
 }

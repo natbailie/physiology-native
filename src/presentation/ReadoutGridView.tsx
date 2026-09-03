@@ -1,35 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import type { ReadoutSpec } from './types';
-
-/* ------------------------------------------------------------------ */
-/*  Colour token resolution (matches DiagramView palette)              */
-/* ------------------------------------------------------------------ */
-
-const TOKEN_PALETTE: Record<string, string> = {
-  artery: '#dc2626',
-  vein: '#3b82f6',
-  glucose: '#22c55e',
-  insulin: '#eab308',
-  glucagon: '#f97316',
-  epinephrine: '#ef4444',
-  text: '#64748b',
-  kidney: '#8b5cf6',
-  kidneyDark: '#6d28d9',
-  o2: '#3b82f6',
-  co2: '#64748b',
-  ph: '#ec4899',
-  bicarbonate: '#06b6d4',
-  raas: '#ef4444',
-  anp: '#06b6d4',
-  sarcomere: '#8b5cf6',
-  venous: '#3b82f6',
-};
-
-function resolveColor(token?: string): string | undefined {
-  if (!token) return undefined;
-  return TOKEN_PALETTE[token];
-}
+import { lookupColor } from './palette';
 
 /* ------------------------------------------------------------------ */
 /*  Readout tile                                                       */
@@ -47,7 +19,7 @@ interface ReadoutTileProps {
 function ReadoutTile({ label, value, unit, secondary, colorToken, wide }: ReadoutTileProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const accent = resolveColor(colorToken);
+  const accent = lookupColor(colorToken);
 
   return (
     <View style={[styles.tile, wide && styles.tileWide, isDark && styles.tileDark]}>

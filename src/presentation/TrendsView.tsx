@@ -2,35 +2,12 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Line, Text as SvgText } from 'react-native-svg';
 import type { ChartSpec, ChartContext, OdCurveSpec, SparklineSpec } from './types';
+import { lookupColor } from './palette';
 
-/* ------------------------------------------------------------------ */
-/*  Colour token resolution                                              */
-/* ------------------------------------------------------------------ */
-
-const TOKEN_PALETTE: Record<string, string> = {
-  artery: '#dc2626',
-  vein: '#3b82f6',
-  glucose: '#22c55e',
-  insulin: '#eab308',
-  glucagon: '#f97316',
-  epinephrine: '#ef4444',
-  text: '#64748b',
-  kidney: '#8b5cf6',
-  kidneyDark: '#6d28d9',
-  o2: '#3b82f6',
-  co2: '#64748b',
-  ph: '#ec4899',
-  bicarbonate: '#06b6d4',
-  raas: '#ef4444',
-  anp: '#06b6d4',
-  sarcomere: '#8b5cf6',
-  danger: '#dc2626',
-  baseline: '#94a3b8',
-};
-
+/** A trace whose token has no colour falls back to the neutral text grey rather than to black:
+ * a chart line is still readable in grey, and a black one reads as deliberate. */
 function resolveColor(token?: string, def: string = '#64748b'): string {
-  if (!token) return def;
-  return TOKEN_PALETTE[token] ?? def;
+  return lookupColor(token) ?? def;
 }
 
 /* ------------------------------------------------------------------ */

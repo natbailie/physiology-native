@@ -13,49 +13,7 @@ import Svg, {
 } from 'react-native-svg';
 import type { FrameNode, SceneNode } from './types';
 import { renderOrgan } from './organs';
-
-/* ------------------------------------------------------------------ */
-/*  Colour token resolution                                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * In the web renderer, `colorToken` becomes `var(--token)` resolved by CSS.
- * On native, each module provides its own palette; tokens map to hex strings.
- * This is a starter palette — modules will provide their own eventually.
- */
-const TOKEN_PALETTE: Record<string, string> = {
-  artery: '#dc2626',
-  vein: '#3b82f6',
-  glucose: '#22c55e',
-  insulin: '#eab308',
-  glucagon: '#f97316',
-  epinephrine: '#ef4444',
-  text: '#64748b',
-  kidney: '#8b5cf6',
-  kidneyDark: '#6d28d9',
-  o2: '#3b82f6',
-  co2: '#64748b',
-  ph: '#ec4899',
-  bicarbonate: '#06b6d4',
-  raas: '#ef4444',
-  anp: '#06b6d4',
-  sarcomere: '#8b5cf6',
-  baseline: '#94a3b8',
-  trail: '#334155',
-  normal: '#22c55e',
-  live: '#f97316',
-  'isopleth-20': '#94a3b8',
-  'isopleth-30': '#94a3b8',
-  'isopleth-40': '#94a3b8',
-  'isopleth-60': '#94a3b8',
-  'isopleth-80': '#94a3b8',
-  'isopleth-100': '#94a3b8',
-};
-
-function resolveColor(token?: string): string {
-  if (!token) return '#000000';
-  return TOKEN_PALETTE[token] ?? '#000000';
-}
+import { resolveColor } from './palette';
 
 /* ------------------------------------------------------------------ */
 /*  CSS-class-aware styling (the web renders `cls` via CSS modules)    */
@@ -78,30 +36,46 @@ interface ClsStyle {
 }
 
 const CLS_STYLES: Record<string, ClsStyle> = {
-  plotGrid: { stroke: '#e2e8f0', strokeWidth: 0.75, opacity: 0.8 },
-  plotAxis: { stroke: '#94a3b8', strokeWidth: 1.2 },
-  axisLabel: { fill: '#94a3b8', fontSize: 9 },
-  isopleth: { stroke: '#cbd5e1', strokeWidth: 1, opacity: 0.9 },
-  isoplethLabel: { fill: '#94a3b8', fontSize: 9 },
-  bufferLine: { stroke: '#64748b', strokeWidth: 1.6 },
-  normalPoint: { fill: '#22c55e' },
-  livePoint: { fill: '#f97316' },
-  trail: { stroke: '#475569', strokeWidth: 1.8, fill: 'none' },
-  baselineTrail: { stroke: '#94a3b8', strokeWidth: 1.4, fill: 'none', dash: '4,3', opacity: 0.6 },
-  regionLabel: { fill: '#94a3b8', fontSize: 9, fontStyle: 'italic' },
-  verdict: { fill: '#0f172a', fontSize: 13, fontWeight: '700' },
-  verdictMixed: { fill: '#dc2626', fontSize: 13, fontWeight: '700' },
-  pathLabel: { fill: '#64748b', fontSize: 11 },
-  organLabel: { fill: '#64748b', fontSize: 11 },
+  plotGrid: { stroke: '#e2e8f0', strokeWidth: 1 },
+  plotAxis: { stroke: '#64748b', strokeWidth: 1.2 },
+  axisLabel: { fill: '#64748b', fontSize: 8 },
+  isopleth: { stroke: '#b4500c', strokeWidth: 1, dash: '3,4', opacity: 0.5 },
+  isoplethLabel: { fill: '#b4500c', fontSize: 7, opacity: 0.85 },
+  bufferLine: { stroke: '#177d36', strokeWidth: 1.6, opacity: 0.75 },
+  // The normal-status marker is a hollow dashed ring, not a disc — it marks where a healthy
+  // person sits so the live point can be read against it, and a filled marker would compete
+  // with the live point for the eye.
+  normalPoint: { fill: 'none', stroke: '#64748b', strokeWidth: 1.2, dash: '2,2' },
+  livePoint: { fill: '#c2258c', stroke: '#ffffff', strokeWidth: 1.5 },
+  trail: { stroke: '#c2258c', strokeWidth: 1.6, fill: 'none', opacity: 0.45 },
+  baselineTrail: { stroke: '#64748b', strokeWidth: 1.4, fill: 'none', dash: '3,3', opacity: 0.55 },
+  regionLabel: { fill: '#64748b', fontSize: 7, opacity: 0.85 },
+  verdict: { fill: '#0f172a', fontSize: 9, fontWeight: '600' },
+  verdictMixed: { fill: '#c62828', fontSize: 9, fontWeight: '600' },
+  pathLabel: { fill: '#475569', fontSize: 9 },
+  organLabel: { fill: '#0f172a', fontSize: 11, fontWeight: '600' },
   label: { fill: '#475569', fontSize: 11 },
-  caption: { fill: '#94a3b8', fontSize: 10 },
-  alarm: { fill: '#dc2626', fontSize: 12, fontWeight: '700' },
-  valueLabel: { fill: '#0f172a', fontSize: 12, fontWeight: '700' },
+  caption: { fill: '#64748b', fontSize: 11 },
+  alarm: { fill: '#c62828', fontSize: 12 },
+  valueLabel: { fill: '#0f172a', fontSize: 9 },
 };
 
 function clsStyle(cls: string | undefined): ClsStyle {
   if (!cls) return {};
   return CLS_STYLES[cls] ?? {};
+}
+
+/**
+ * A path's fill. The schema's paths are overwhelmingly stroke-only — isopleths, trails, buffer
+ * lines — and the web gets `fill: none` for them from the CSS module. Native has no such sheet, so
+ * an unfilled path must default to `'none'` here; falling back to a colour would paint an isopleth
+ * curve as a solid black wedge over the plot. A fill is only ever drawn when the node or its class
+ * explicitly asks for one. (`colorToken` is the stroke colour, as on the web, never the fill.)
+ */
+function pathFill(fill: string | undefined, style: ClsStyle): string {
+  if (fill === 'none') return 'none';
+  if (fill) return resolveColor(fill);
+  return style.fill ?? 'none';
 }
 
 /* ------------------------------------------------------------------ */
@@ -133,32 +107,39 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
       );
     }
 
-    case 'path':
+    case 'path': {
+      const ps = clsStyle(node.cls);
       return (
         <Path
           key={index}
           d={node.d}
-          stroke={clsStyle(node.cls).stroke ?? resolveColor(node.colorToken)}
-          fill={node.fill === 'none' ? 'none' : clsStyle(node.cls).fill ?? (node.colorToken ? resolveColor(node.colorToken) : '#000000')}
-          strokeWidth={clsStyle(node.cls).strokeWidth ?? node.strokeWidth ?? (clsStyle(node.cls).stroke ? 1 : 1)}
+          stroke={ps.stroke ?? resolveColor(node.colorToken)}
+          fill={pathFill(node.fill, ps)}
+          strokeWidth={ps.strokeWidth ?? node.strokeWidth ?? 1}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={clsStyle(node.cls).dash}
-          opacity={clsStyle(node.cls).opacity}
+          strokeDasharray={ps.dash}
+          opacity={ps.opacity}
         />
       );
+    }
 
-    case 'circle':
+    case 'circle': {
+      const cs = clsStyle(node.cls);
       return (
         <Circle
           key={index}
           cx={node.cx}
           cy={node.cy}
           r={node.r}
-          fill={clsStyle(node.cls).fill ?? resolveColor(node.fill)}
-          opacity={clsStyle(node.cls).opacity}
+          fill={cs.fill ?? resolveColor(node.fill)}
+          stroke={cs.stroke}
+          strokeWidth={cs.strokeWidth}
+          strokeDasharray={cs.dash}
+          opacity={cs.opacity}
         />
       );
+    }
 
     case 'rect':
       return (
@@ -202,7 +183,7 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
             node.anchor === 'middle' ? 'middle' :
             node.anchor === 'end' ? 'end' : 'start'
           }
-          opacity={node.opacity}
+          opacity={ts.opacity ?? node.opacity}
         >
           {node.text}
         </SvgText>
