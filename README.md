@@ -32,6 +32,10 @@ which is the same thing `physiology-app` does without a `.env.local`, and is wor
 - `src/engine/<module>/` — a module's file-synced engine, presentation schema, questions and
   explainer prose, plus two hand-written native files: `nativeLoopConfig.ts` and `adapter.ts`.
 - `src/engine/adapters.generated.ts` — id → lazy `import()` of each adapter. Generated; see below.
+- `src/engine/<module>/diagramClasses.ts` — that module's classes, ported from its own
+  `Diagram.module.css`. Per module because the web scopes them with CSS modules and the same name
+  means different things in different ones; the eleven shared text classes stay global in
+  `DiagramView`.
 - `src/presentation/` — the native renderer: `DiagramView`, `ControlRailView`, `ReadoutGridView`,
   `TrendsView`, `ScenarioBar`, `PracticePanel`, `ExplainerView`, `TutorPanel`, `organs`.
 - `src/hooks/useNativeEngineLoop.ts` — the native loop: ref-held state, sub-stepping, bounded
@@ -85,7 +89,10 @@ project generates its module manifest and for the same reason: Metro has no glob
 ## Status
 
 All 45 modules render, with presets, perturbations, sparkline and OD-curve charts, the frozen
-baseline overlay, engine-verified practice questions, the explainer prose and the tutor. Progress
+baseline overlay, engine-verified practice questions, the explainer prose and the tutor. Every
+`cls` the presentations use resolves, including the ones a module's engine drives through
+`styleVars` — BPPV thickens vestibular's posterior canal and brings its canaliths up, as on the
+web. Progress
 is on-device and syncs to an account when signed in. Three modules are free and the rest are gated,
 matching the web.
 
@@ -98,11 +105,6 @@ matching the web.
   which means `react-native-purchases` — a native module, so a development build rather than Expo
   Go. Entitlement is read from Supabase, so a web subscription or an institutional seat already
   unlocks this app; only buying *here* is missing.
-- **Per-module diagram classes.** The renderer resolves the eleven shared text classes from the
-  web's `diagramText` sheet. The other ~52 `cls` values come from each module's own
-  `Diagram.module.css`, several through `color-mix()` and the `styleVars` custom properties, and
-  are not ported — those elements draw unstyled. Note for whoever does it: a CSS `fill` beats the
-  `fill` presentation attribute, which is the opposite of the precedence `pathFill` applies today.
 - **No tests.** The engines are covered by the web project's suite, but the hand-written native
   code — the loop hook, the presentation views, the adapters — is covered only by typecheck and
   lint. `jest-expo` is the obvious next step.
