@@ -79,29 +79,25 @@ function pathFill(fill: string | undefined, style: ClsStyle): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  SVG attribute parsing                                              */
-/* ------------------------------------------------------------------ */
-
-function parseTransform(transform?: string): Record<string, string> | undefined {
-  if (!transform) return undefined;
-  // Handle translate(x, y)
-  const translate = transform.match(/translate\(([-\d.]+),?\s*([-\d.]+)\)/);
-  if (translate) {
-    return { translateX: translate[1], translateY: translate[2] };
-  }
-  return undefined;
-}
-
-/* ------------------------------------------------------------------ */
 /*  Scene node renderer                                                */
 /* ------------------------------------------------------------------ */
 
 function renderNode(node: SceneNode, index: number): React.ReactNode {
   switch (node.type) {
+    /**
+     * `presentation.ts` emits ordinary SVG transform strings and react-native-svg parses that
+     * syntax itself, so the string is handed over untouched.
+     *
+     * It used to be parsed here into {translateX, translateY} and re-serialised as `"x, y"`,
+     * which is not SVG transform syntax. react-native-svg rejected every one of them
+     * ("Expected \"matrix\", \"rotate\", ...") and dropped the transform, so all 56
+     * transformed groups drew on top of each other at the origin. The regex also matched only
+     * `translate`, so `scale(0.72)`, `rotate(-52 136 186)` and `translate(13,0) scale(-1,1)`
+     * were discarded even where the serialisation was not at fault.
+     */
     case 'group': {
-      const transform = parseTransform(node.transform);
       return (
-        <G key={index} transform={transform ? `${transform.translateX}, ${transform.translateY}` : undefined}>
+        <G key={index} transform={node.transform}>
           {node.children.map((child, i) => renderNode(child, i))}
         </G>
       );
