@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 interface ModuleEntry {
@@ -303,6 +303,7 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
+      <Stack.Screen options={{ title: 'Physiology' }} />
       <FlatList
         data={MODULES}
         keyExtractor={(m) => m.id}

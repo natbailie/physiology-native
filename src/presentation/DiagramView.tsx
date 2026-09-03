@@ -116,6 +116,8 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
           strokeLinejoin="round"
           strokeDasharray={ps.dash}
           opacity={ps.opacity}
+          markerEnd={node.markerEnd ? `url(#${node.markerEnd})` : undefined}
+          clipPath={node.clipPathId ? `url(#${node.clipPathId})` : undefined}
         />
       );
     }
@@ -211,6 +213,7 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
             strokeDasharray={node.inhibitory ? '4,4' : undefined}
             strokeLinecap="round"
             opacity={0.5 + node.activation * 0.5}
+            markerEnd={`url(#${node.markerId})`}
           />
           <SvgText
             x={node.labelX}

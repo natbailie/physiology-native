@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, ScrollView, Text, View, useColorScheme } from 'react-native';
 import { DiagramView } from '../../src/presentation/DiagramView';
@@ -1637,7 +1637,9 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
 
   return (
     <ScrollView style={[styles.container, isDark && styles.containerDark]} contentContainerStyle={styles.content}>
-      <Text style={[styles.title, isDark && styles.textLight]}>{adapter.title}</Text>
+      {/* Without this the stack header reads the route pattern, "module/[id]". The module name
+          lives there rather than in the page body, which is where a native app expects it. */}
+      <Stack.Screen options={{ title: adapter.title }} />
       <ScenarioBar
         presets={adapter.order.map((id) => ({ id, label: adapter.labels[id] }))}
         activePreset={activePreset}
@@ -1705,7 +1707,6 @@ const styles = StyleSheet.create({
   containerDark: { backgroundColor: '#0f172a' },
   content: { padding: 16, gap: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '700', color: '#0f172a', marginBottom: 4 },
   errorText: { fontSize: 16, color: '#64748b' },
   textLight: { color: '#e2e8f0' },
   textMuted: { color: '#94a3b8' },

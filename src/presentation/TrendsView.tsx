@@ -103,7 +103,10 @@ function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.chartTitle}>O2-Hb dissociation</Text>
+      {/* The web titles these the same way, from the spec rather than a constant: an od-curve
+          is not always the oxygen curve (muscleContraction plots length-tension and
+          force-velocity through the same spec). */}
+      <Text style={styles.chartTitle}>{spec.yLabel} vs {spec.xLabel}</Text>
       <Svg width={PLOT_W} height={PLOT_H} viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
         <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke="#cbd5e1" strokeWidth={1} />
         <Line x1={PAD_X} y1={PAD_Y} x2={PAD_X} y2={PLOT_H - PAD_Y} stroke="#cbd5e1" strokeWidth={1} />
