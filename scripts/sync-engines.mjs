@@ -15,61 +15,36 @@
  *   node scripts/sync-engines.mjs --check    # exit 1 if any copy has drifted (CI / pre-commit)
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const NATIVE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB_ROOT = resolve(NATIVE_ROOT, '..', 'physiology-app');
 
-/** web module directory -> native engine directory */
-const MODULES = {
-  glucoseRegulation: 'glucose',
-  cardiorenal: 'cardiorenal',
-  respiratory: 'respiratory',
-  adrenalCortex: 'adrenalCortex',
-  adrenalMedulla: 'adrenalMedulla',
-  anteriorPituitary: 'anteriorPituitary',
-  hpaAxis: 'hpaAxis',
-  hpgAxis: 'hpgAxis',
-  hptAxis: 'hptAxis',
-  calciumHomeostasis: 'calciumHomeostasis',
-  cardiacElectro: 'cardiacElectro',
-  ecgConduction: 'ecgConduction',
-  coronaryCirculation: 'coronaryCirculation',
-  venousReturn: 'venousReturn',
-  respiratoryMechanics: 'respiratoryMechanics',
-  renalTubular: 'renalTubular',
-  electrolyteBalance: 'electrolyteBalance',
-  capillaryExchange: 'capillaryExchange',
-  gastrointestinal: 'gastrointestinal',
-  digestionAbsorption: 'digestionAbsorption',
-  enzymeKinetics: 'enzymeKinetics',
-  liverPhysiology: 'liverPhysiology',
-  bloodGroups: 'bloodGroups',
-  coagulation: 'coagulation',
-  erythropoiesis: 'erythropoiesis',
-  shockStates: 'shockStates',
-  inflammation: 'inflammation',
-  cerebralPerfusion: 'cerebralPerfusion',
-  motorControl: 'motorControl',
-  somaticSensation: 'somaticSensation',
-  muscleContraction: 'muscleContraction',
-  neuromuscularJunction: 'neuromuscularJunction',
-  hearing: 'hearing',
-  vestibular: 'vestibular',
-  vision: 'vision',
-  cellCycle: 'cellCycle',
-  micturition: 'micturition',
-  pregnancy: 'pregnancy',
-  exercisePhysiology: 'exercisePhysiology',
-  fetalCirculation: 'fetalCirculation',
-  immuneResponse: 'immuneResponse',
-  hypersensitivity: 'hypersensitivity',
-  thermoregulation: 'thermoregulation',
-  autonomicNervous: 'autonomicNervous',
-  membranePotentials: 'membranePotentials',
-};
+/**
+ * The modules to copy: every directory under the web project's `src/modules` that carries both a
+ * `questions.ts` and a `content.ts`.
+ *
+ * That is the exact predicate `tools/module-manifest/generate.mjs` uses upstream, so this set and
+ * the one in the synced `manifest.generated.ts` cannot disagree — which is what lets that file be
+ * copied rather than regenerated here.
+ *
+ * This was a hand-written map of 45 web-directory -> native-directory pairs. Every pair but one
+ * was an identity, and the exception (glucoseRegulation -> glucose) is gone: the native directory
+ * is now named for the module id, like every other, so the manifest's `./glucoseRegulation/content`
+ * resolves here too.
+ */
+function modulesOf(webRoot) {
+  const dir = join(webRoot, 'src/modules');
+  return readdirSync(dir)
+    .filter((name) => statSync(join(dir, name)).isDirectory())
+    .filter(
+      (name) =>
+        existsSync(join(dir, name, 'questions.ts')) && existsSync(join(dir, name, 'content.ts')),
+    )
+    .sort();
+}
 
 /**
  * Web engine files that are deliberately not copied: tests stay in the web repo (they run under
@@ -95,6 +70,16 @@ const ANCHORS = {
   '@/shared/assessment/types': 'src/shared/assessment/types',
   '@/shared/assessment/verifyQuestion': 'src/shared/assessment/verifyQuestion',
   '@/shared/assessment/verifyPattern': 'src/shared/assessment/verifyPattern',
+  // The manifest keeps its own relative `./<module>/content` imports, which resolve because the
+  // native engine directories are named for the module id. It lands beside them for that reason.
+  '@/modules/manifest.generated': 'src/engine/manifest.generated',
+  '@/shared/assessment/weakness': 'src/shared/assessment/weakness',
+  '@/shared/assessment/scheduling': 'src/shared/assessment/scheduling',
+  '@/shared/assessment/useProgressStore': 'src/shared/assessment/useProgressStore',
+  '@/home/moduleRegistry': 'src/home/moduleRegistry',
+  '@/shared/glossary/terms': 'src/shared/glossary/terms',
+  '@/medications/drugs': 'src/medications/drugs',
+  '@/reference/formulas': 'src/reference/formulas',
   '@/lib/supabase': 'src/lib/supabase',
   '@/auth/AuthContext': 'src/auth/AuthContext',
   '@/shared/hooks/useEngineLoop': 'src/hooks/useNativeEngineLoop',
@@ -104,6 +89,22 @@ const ANCHORS = {
   // to that module here rather than to a React component with a CSS module attached.
   '@/shared/components/ExplainerPanel/ExplainerPanel': 'src/shared/explainer/types',
 };
+
+/**
+ * Whether a source actually READS `import.meta`, as opposed to mentioning it.
+ *
+ * `import.meta` is a compile-time error under Hermes, and src/lib/env.ts exists precisely so that
+ * one web module owns that read — a copy reaching for it wants a platform seam instead. But the
+ * files that were changed to make them shareable say so in their own docblocks ("this used to be
+ * an `import.meta.glob`"), and refusing those would reject the very files the effort produced.
+ * So comments are stripped before the check.
+ */
+function readsImportMeta(source) {
+  const withoutComments = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  return /\bimport\s*\.\s*meta\b/.test(withoutComments);
+}
 
 /** An import specifier from `fromNativePath` to `toNativePath`, both relative to NATIVE_ROOT. */
 function relativeSpecifier(fromNativePath, toNativePath) {
@@ -122,6 +123,12 @@ function transform(source, nativePath) {
 
   // The web keeps a module's engine in an `engine/` subdirectory; here it is the directory itself.
   out = out.replaceAll("from './engine/", "from './");
+
+  // The same fact stated through the `@/` alias, which is how a file outside the module reaches
+  // one of its engine parts — `reference/formulas.ts` imports eight of them. One rule rather than
+  // eight anchors, and it works for any module because the native directory is named for the id.
+  out = out.replace(/'@\/modules\/([A-Za-z0-9]+)\/engine\/([A-Za-z0-9/]+)'/g, (_m, mod, rest) =>
+    `'${relativeSpecifier(nativePath, `src/engine/${mod}/${rest}`)}'`);
 
   // The web loop hook and the native one are different implementations of the same contract.
   out = out.replaceAll(/\bEngineLoopConfig\b/g, 'NativeLoopConfig');
@@ -158,21 +165,31 @@ function buildManifest() {
     { web: 'src/billing/useEntitlement.ts', native: 'src/billing/useEntitlement.ts' },
     { web: 'src/billing/licence.ts', native: 'src/billing/licence.ts' },
     { web: 'src/shared/assessment/useModulePractice.ts', native: 'src/shared/assessment/useModulePractice.ts' },
+    { web: 'src/modules/manifest.generated.ts', native: 'src/engine/manifest.generated.ts' },
+    { web: 'src/home/moduleQuestionIds.ts', native: 'src/home/moduleQuestionIds.ts' },
+    { web: 'src/home/useModuleProgress.ts', native: 'src/home/useModuleProgress.ts' },
+    { web: 'src/shared/chat/corpus.ts', native: 'src/shared/chat/corpus.ts' },
+    { web: 'src/shared/chat/retrieve.ts', native: 'src/shared/chat/retrieve.ts' },
+    { web: 'src/shared/chat/corpusAnswer.ts', native: 'src/shared/chat/corpusAnswer.ts' },
+    { web: 'src/shared/chat/systemPrompt.ts', native: 'src/shared/chat/systemPrompt.ts' },
+    { web: 'src/shared/glossary/terms.ts', native: 'src/shared/glossary/terms.ts' },
+    { web: 'src/medications/drugs.ts', native: 'src/medications/drugs.ts' },
+    { web: 'src/reference/formulas.ts', native: 'src/reference/formulas.ts' },
   ];
 
-  for (const [webModule, nativeModule] of Object.entries(MODULES)) {
-    const engineDir = join(WEB_ROOT, 'src/modules', webModule, 'engine');
+  for (const module of modulesOf(WEB_ROOT)) {
+    const engineDir = join(WEB_ROOT, 'src/modules', module, 'engine');
     for (const name of readdirSync(engineDir).sort()) {
       if (!isCopiedEngineFile(name)) continue;
       entries.push({
-        web: `src/modules/${webModule}/engine/${name}`,
-        native: `src/engine/${nativeModule}/${name}`,
+        web: `src/modules/${module}/engine/${name}`,
+        native: `src/engine/${module}/${name}`,
       });
     }
     for (const name of ['presentation.ts', 'questions.ts', 'content.ts']) {
       entries.push({
-        web: `src/modules/${webModule}/${name}`,
-        native: `src/engine/${nativeModule}/${name}`,
+        web: `src/modules/${module}/${name}`,
+        native: `src/engine/${module}/${name}`,
       });
     }
   }
@@ -188,6 +205,10 @@ const SYNCED_ONLY_DIRS = new Set([
   'src/home',
   'src/auth',
   'src/billing',
+  'src/shared/chat',
+  'src/shared/glossary',
+  'src/medications',
+  'src/reference',
 ]);
 
 /** Native files sitting in a synced directory with no web source — a rename or deletion upstream. */
@@ -241,10 +262,7 @@ for (const { web, native } of entries) {
   }
 
   const source = readFileSync(webAbs, 'utf8');
-  // `import.meta` is a compile-time error under Hermes, and the whole point of src/lib/env.ts is
-  // that it is the one web module allowed to read it. A copy that reaches for it is a file that
-  // should have been given a platform seam instead, so fail loudly rather than copy it in.
-  if (source.includes('import.meta')) {
+  if (readsImportMeta(source)) {
     reachedForImportMeta.push(web);
     continue;
   }

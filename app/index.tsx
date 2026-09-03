@@ -1,6 +1,8 @@
 import { Link, Stack } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { MODULES, type ModuleDescriptor } from '../src/home/moduleRegistry';
+import { useModuleProgress, type ModuleProgress, type ProgressTotals } from '../src/home/useModuleProgress';
+import { useProgressStore } from '../src/shared/assessment/useProgressStore';
 import { lookupColor } from '../src/presentation/palette';
 
 /**
@@ -22,7 +24,36 @@ function accentOf(module: ModuleDescriptor, isDark: boolean): string | undefined
   return lookupColor(token, isDark ? 'dark' : 'light');
 }
 
-function ModuleCard({ module: m, isDark }: { module: ModuleDescriptor; isDark: boolean }) {
+/**
+ * The web's study strip: what is due, what is known, and how long the streak is.
+ *
+ * Everything here is read through the file-synced useModuleProgress, which is also what builds
+ * the question index — so this is the first screen to exercise manifest.generated.ts and the
+ * on-device progress store.
+ */
+function StudyStrip({ totals, streak, isDark }: { totals: ProgressTotals; streak: number; isDark: boolean }) {
+  const parts = [
+    totals.due > 0 ? `${totals.due} due` : null,
+    totals.totalQuestions > 0 ? `${totals.known} / ${totals.totalQuestions} known` : null,
+    streak > 0 ? `${streak}-day streak` : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return (
+    <View style={[styles.strip, isDark && styles.stripDark]}>
+      <Text style={[styles.stripText, isDark && styles.textMuted]}>{parts.join('  ·  ')}</Text>
+    </View>
+  );
+}
+
+function ModuleCard({
+  module: m,
+  isDark,
+  progress,
+}: {
+  module: ModuleDescriptor;
+  isDark: boolean;
+  progress?: ModuleProgress;
+}) {
   const accent = accentOf(m, isDark);
   return (
     <Link href={`/module/${m.id}`} asChild>
@@ -33,6 +64,11 @@ function ModuleCard({ module: m, isDark }: { module: ModuleDescriptor; isDark: b
             <View style={styles.cardBody}>
               <Text style={[styles.cardTitle, isDark && styles.textLight]}>{m.name}</Text>
               <Text style={[styles.cardTagline, isDark && styles.textMuted]}>{m.tagline}</Text>
+              {progress && progress.dueCount > 0 && (
+                <Text style={[styles.cardDue, { color: accent ?? '#64748b' }]}>
+                  {progress.dueCount} due for review
+                </Text>
+              )}
             </View>
           </View>
         )}
@@ -44,6 +80,8 @@ function ModuleCard({ module: m, isDark }: { module: ModuleDescriptor; isDark: b
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { progress, totals } = useModuleProgress();
+  const store = useProgressStore();
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
       <Stack.Screen options={{ title: 'Physiology' }} />
@@ -51,7 +89,10 @@ export default function HomeScreen() {
         data={SIMULATORS}
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => <ModuleCard module={item} isDark={isDark} />}
+        ListHeaderComponent={<StudyStrip totals={totals} streak={store.streak()} isDark={isDark} />}
+        renderItem={({ item }) => (
+          <ModuleCard module={item} isDark={isDark} progress={progress[item.id]} />
+        )}
       />
     </View>
   );
@@ -78,6 +119,10 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, padding: 16 },
   cardTitle: { fontSize: 17, fontWeight: '600', color: '#0f172a', marginBottom: 4 },
   cardTagline: { fontSize: 14, color: '#64748b', lineHeight: 20 },
+  cardDue: { fontSize: 12, fontWeight: '600', marginTop: 6 },
+  strip: { paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
+  stripDark: {},
+  stripText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
   textLight: { color: '#e2e8f0' },
   textMuted: { color: '#94a3b8' },
 });

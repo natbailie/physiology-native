@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, ScrollView, Text, View, useColorScheme } from 'react-native';
 import { DiagramView } from '../../src/presentation/DiagramView';
 import { ControlRailView } from '../../src/presentation/ControlRailView';
@@ -8,19 +8,20 @@ import { TrendsView } from '../../src/presentation/TrendsView';
 import { ScenarioBar } from '../../src/presentation/ScenarioBar';
 import type { ModulePresentation, PresentationContext } from '../../src/presentation/types';
 import { PracticePanel } from '../../src/presentation/PracticePanel';
+import { useProgressStore } from '../../src/shared/assessment/useProgressStore';
 import { useNativeEngineLoop, type NativeLoopConfig } from '../../src/hooks/useNativeEngineLoop';
 
-import { glucoseNativeLoopConfig } from '../../src/engine/glucose/nativeLoopConfig';
-import { buildGlucosePresentation } from '../../src/engine/glucose/presentation';
+import { glucoseNativeLoopConfig } from '../../src/engine/glucoseRegulation/nativeLoopConfig';
+import { buildGlucosePresentation } from '../../src/engine/glucoseRegulation/presentation';
 import {
   DEFAULT_GLUCOSE_INPUTS,
   GLUCOSE_PRESETS,
   GLUCOSE_PRESET_LABELS,
   PRESET_ORDER as GLUCOSE_PRESET_ORDER,
-} from '../../src/engine/glucose/presets';
-import { perturbEatMeal, perturbGiveInsulin } from '../../src/engine/glucose/engine';
-import { GLUCOSE_QUESTIONS } from '../../src/engine/glucose/questions';
-import type { GlucoseDerived, GlucoseHistoryPoint, GlucoseInputs, GlucoseState } from '../../src/engine/glucose/types';
+} from '../../src/engine/glucoseRegulation/presets';
+import { perturbEatMeal, perturbGiveInsulin } from '../../src/engine/glucoseRegulation/engine';
+import { GLUCOSE_QUESTIONS } from '../../src/engine/glucoseRegulation/questions';
+import type { GlucoseDerived, GlucoseHistoryPoint, GlucoseInputs, GlucoseState } from '../../src/engine/glucoseRegulation/types';
 
 import { cardiorenalNativeLoopConfig } from '../../src/engine/cardiorenal/nativeLoopConfig';
 import { buildCardiorenalPresentation } from '../../src/engine/cardiorenal/presentation';
@@ -1555,8 +1556,11 @@ function BaselineBar({ hasBaseline, onCapture, onClear }: { hasBaseline: boolean
 }
 
 function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
+  moduleId,
   adapter,
 }: {
+  /** The registry id, which is also the key progress is recorded under. */
+  moduleId: string;
   adapter: ModuleAdapter<TState, TInputs, TDerived, THistoryPoint>;
 }) {
   const colorScheme = useColorScheme();
@@ -1638,6 +1642,13 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
   // Withholds the readouts that would name the answer while a pattern question is unanswered.
   const [blinded, setBlinded] = useState(false);
 
+  // The same store the web uses: on-device until a learner signs in, the server after.
+  const store = useProgressStore();
+  const recordOutcome = useCallback(
+    (questionId: string, correct: boolean) => store.record(moduleId, questionId, correct),
+    [store, moduleId],
+  );
+
   return (
     <ScrollView style={[styles.container, isDark && styles.containerDark]} contentContainerStyle={styles.content}>
       {/* Without this the stack header reads the route pattern, "module/[id]". The module name
@@ -1684,6 +1695,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         onOpenScenario={applyPreset}
         onRunQuestion={runQuestion}
         onBlindedChange={setBlinded}
+        onRecord={recordOutcome}
       />
     </ScrollView>
   );
@@ -1703,7 +1715,7 @@ export default function ModuleScreen() {
     );
   }
 
-  return <EngineModuleScreen adapter={adapter} />;
+  return <EngineModuleScreen moduleId={id as string} adapter={adapter} />;
 }
 
 const styles = StyleSheet.create({

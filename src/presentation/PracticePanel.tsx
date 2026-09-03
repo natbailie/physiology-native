@@ -53,11 +53,15 @@ export interface PracticePanelProps {
   /** Reports whether any pattern-discrimination question is still unanswered, so the readout
    *  grid can withhold the tiles that would name the answer. */
   onBlindedChange?: (blinded: boolean) => void;
+  /** Records an outcome against the learner's progress. Called once per question, on the first
+   *  commit — a revealed question cannot be re-answered, so there is no second attempt to log. */
+  onRecord?: (questionId: string, correct: boolean) => void;
 }
 
 type Phase = 'idle' | 'committed';
 
 interface PracticeRowProps {
+  onRecord?: (questionId: string, correct: boolean) => void;
   question: PredictQuestion<any, any, any>;
   outcome: PredictOutcome | null;
   accent: string;
@@ -101,18 +105,21 @@ function PracticeRow({
   accent,
   onOpenScenario,
   onRunQuestion,
+  onRecord,
 }: PracticeRowProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [picked, setPicked] = useState<string | null>(null);
   const isDark = useColorScheme() === 'dark';
 
+  const answer = correctAnswerOf(question);
+
   const handleCommit = (answerId: string) => {
     if (phase === 'committed') return;
     setPicked(answerId);
     setPhase('committed');
+    onRecord?.(question.id, answerId === answer);
   };
 
-  const answer = correctAnswerOf(question);
   const correct = picked === answer;
 
   const openTarget = question.setup?.preset as string | undefined;
@@ -171,6 +178,7 @@ export function PracticePanel({
   onOpenScenario,
   onRunQuestion,
   onBlindedChange,
+  onRecord,
 }: PracticePanelProps) {
   const isDark = useColorScheme() === 'dark';
 
@@ -231,6 +239,7 @@ export function PracticePanel({
               accent={accent}
               onOpenScenario={onOpenScenario}
               onCommit={commit}
+              onRecord={onRecord}
             />
           );
         }
@@ -243,6 +252,7 @@ export function PracticePanel({
             accent={accent}
             onOpenScenario={onOpenScenario}
             onRunQuestion={onRunQuestion}
+            onRecord={onRecord}
           />
         );
       })}
@@ -257,6 +267,7 @@ export function PracticePanel({
 interface PatternRowProps {
   /** Called once, when the learner commits an answer, so the panel can stop blinding. */
   onCommit: (questionId: string) => void;
+  onRecord?: (questionId: string, correct: boolean) => void;
    
   question: ModuleQuestion<any, any, any>;
   panel: ReturnType<typeof readPanel> | null;
@@ -264,7 +275,7 @@ interface PatternRowProps {
   onOpenScenario?: (presetId: string) => void;
 }
 
-function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit }: PatternRowProps) {
+function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit, onRecord }: PatternRowProps) {
   const [phase, setPhase] = useState<'idle' | 'committed'>('idle');
   const [picked, setPicked] = useState<string | null>(null);
   const isDark = useColorScheme() === 'dark';
@@ -283,6 +294,7 @@ function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit 
     setPicked(ans);
     setPhase('committed');
     onCommit(question.id);
+    onRecord?.(question.id, ans === styled.answer);
   };
 
   const correct = picked === styled.answer;
