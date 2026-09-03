@@ -37,14 +37,17 @@ function ClassRow({ drugClass, isDark }: { drugClass: DrugClass; isDark: boolean
 
 function FamilySection({ family, isDark }: { family: FamilyMeta; isDark: boolean }) {
   const [open, setOpen] = useState(false);
-  const classes = MEDICATIONS.filter((c) => c.family === family.id);
+  // `DrugClass.family` is the display name; `FamilyMeta.id` is its URL slug. Matching on the id
+  // silently found nothing and every family read "0 classes".
+  const classes = MEDICATIONS.filter((c) => c.family === family.name);
   return (
     <View style={[styles.card, isDark && styles.cardDark]}>
       <Pressable onPress={() => setOpen((v) => !v)} style={styles.header}>
         <View style={styles.headerText}>
           <Text style={[styles.familyName, isDark && styles.textLight]}>{family.name}</Text>
+          <Text style={[styles.blurb, isDark && styles.bodyDark]}>{family.blurb}</Text>
           <Text style={[styles.count, isDark && styles.bodyDark]}>
-            {classes.length} {classes.length === 1 ? 'class' : 'classes'}
+            {family.classCount} {family.classCount === 1 ? 'class' : 'classes'}
           </Text>
         </View>
         <Text style={styles.toggle}>{open ? 'Hide' : 'Open'}</Text>
@@ -84,7 +87,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   headerText: { flex: 1 },
   familyName: { fontSize: 16, fontWeight: '600', color: '#0f172a' },
-  count: { fontSize: 13, color: '#64748b', marginTop: 2 },
+  blurb: { fontSize: 13, lineHeight: 19, color: '#64748b', marginTop: 4 },
+  count: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
   toggle: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
   classes: { marginTop: 12, gap: 10 },
   classCard: { backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, gap: 6 },
