@@ -72,6 +72,15 @@ function clsStyle(cls: string | undefined): ClsStyle {
  * curve as a solid black wedge over the plot. A fill is only ever drawn when the node or its class
  * explicitly asks for one. (`colorToken` is the stroke colour, as on the web, never the fill.)
  */
+/**
+ * An absent fill is `none`, never a colour.
+ *
+ * `resolveColor` answers `#000000` for a token it does not know, which is a reasonable last
+ * resort for a stroke and a disaster for a fill: 38 of the 97 rect nodes across the module
+ * presentations carry no `fill` of their own, and every one of them drew as a solid black block
+ * — shockStates rendered both heart chambers as filled squares over the circuit behind them.
+ * Paths already went through here; circles and rects now do too.
+ */
 function pathFill(fill: string | undefined, style: ClsStyle): string {
   if (fill === 'none') return 'none';
   if (fill) return resolveColor(fill);
@@ -130,7 +139,7 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
           cx={node.cx}
           cy={node.cy}
           r={node.r}
-          fill={cs.fill ?? resolveColor(node.fill)}
+          fill={pathFill(node.fill, cs)}
           stroke={cs.stroke}
           strokeWidth={cs.strokeWidth}
           strokeDasharray={cs.dash}
@@ -139,7 +148,8 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
       );
     }
 
-    case 'rect':
+    case 'rect': {
+      const rs = clsStyle(node.cls);
       return (
         <Rect
           key={index}
@@ -147,9 +157,14 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
           y={node.y}
           width={node.width}
           height={node.height}
-          fill={resolveColor(node.fill)}
+          fill={pathFill(node.fill, rs)}
+          stroke={rs.stroke}
+          strokeWidth={rs.strokeWidth}
+          strokeDasharray={rs.dash}
+          opacity={rs.opacity}
         />
       );
+    }
 
     case 'line':
       return (
