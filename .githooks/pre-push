@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# Refuse to push anything that does not pass locally.
+#
+# This runs the full `npm run verify`, which is more than CI can: sync:check compares all ~500
+# copied files against ../physiology-app, and that project is only on disk here. A push that
+# survives this hook has had its copies checked against the source of truth; CI checks everything
+# else. Pushing drift is the one failure this exists to prevent — a copy edited in place looks
+# fine in isolation and is silently reverted by the next `npm run sync`.
+#
+# Enabled by `git config core.hooksPath .githooks`, which `npm install` does via `prepare`.
+# To push past it in an emergency: git push --no-verify
+
+if [ "$SKIP_VERIFY" = "1" ]; then
+  echo "pre-push: SKIP_VERIFY=1 set, skipping verification"
+  exit 0
+fi
+
+echo "pre-push: running npm run verify (sync, adapters, tsc, lint)..."
+
+if ! npm run --silent verify; then
+  echo
+  echo "pre-push: verification FAILED — nothing was pushed."
+  echo "          Fix the above, or push anyway with: git push --no-verify"
+  exit 1
+fi
+
+echo "pre-push: all green, pushing."
+exit 0

@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# `npm run verify` is sync:check + adapters:check + typecheck + lint. Only the last three can run
+# here: sync:check compares every copied file against ../physiology-app, which is a separate
+# repository and is not checked out beside this one on a runner. Drift is caught by the pre-push
+# hook instead, where the web project IS on disk — so the two checks are deliberately split rather
+# than one of them being quietly dropped.
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run adapters:check
+      - run: npm run typecheck
+      - run: npm run lint

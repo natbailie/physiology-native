@@ -15,7 +15,8 @@
     "verify": "npm run sync:check && npm run adapters:check && npm run typecheck && npm run lint",
     "doctor": "expo-doctor",
     "generate:adapters": "node scripts/generate-adapters.mjs",
-    "adapters:check": "node scripts/generate-adapters.mjs --check"
+    "adapters:check": "node scripts/generate-adapters.mjs --check",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
