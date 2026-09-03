@@ -96,6 +96,11 @@ const ANCHORS = {
   '@/shared/assessment/verifyQuestion': 'src/shared/assessment/verifyQuestion',
   '@/shared/assessment/verifyPattern': 'src/shared/assessment/verifyPattern',
   '@/shared/hooks/useEngineLoop': 'src/hooks/useNativeEngineLoop',
+  // Every module's content.ts, and the tutor's corpus reader, take only the CONTENT SHAPE from
+  // the web's ExplainerPanel — `import type { ExplainerContent }`. The shape lives in its own
+  // pure module upstream and the component re-exports it, so the alias the copies carry resolves
+  // to that module here rather than to a React component with a CSS module attached.
+  '@/shared/components/ExplainerPanel/ExplainerPanel': 'src/shared/explainer/types',
 };
 
 /** An import specifier from `fromNativePath` to `toNativePath`, both relative to NATIVE_ROOT. */
@@ -141,6 +146,7 @@ function buildManifest() {
     { web: 'src/shared/assessment/progressStore.ts', native: 'src/shared/assessment/progressStore.ts' },
     { web: 'src/shared/assessment/weakness.ts', native: 'src/shared/assessment/weakness.ts' },
     { web: 'src/home/moduleRegistry.ts', native: 'src/home/moduleRegistry.ts' },
+    { web: 'src/shared/components/ExplainerPanel/types.ts', native: 'src/shared/explainer/types.ts' },
   ];
 
   for (const [webModule, nativeModule] of Object.entries(MODULES)) {
@@ -152,7 +158,7 @@ function buildManifest() {
         native: `src/engine/${nativeModule}/${name}`,
       });
     }
-    for (const name of ['presentation.ts', 'questions.ts']) {
+    for (const name of ['presentation.ts', 'questions.ts', 'content.ts']) {
       entries.push({
         web: `src/modules/${webModule}/${name}`,
         native: `src/engine/${nativeModule}/${name}`,
@@ -167,6 +173,7 @@ function buildManifest() {
 const SYNCED_ONLY_DIRS = new Set([
   'src/shared/assessment',
   'src/shared/lib',
+  'src/shared/explainer',
   'src/home',
 ]);
 
