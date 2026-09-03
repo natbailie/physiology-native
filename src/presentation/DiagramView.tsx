@@ -82,7 +82,7 @@ function pathFill(fill: string | undefined, style: ClsStyle): string {
 /*  Scene node renderer                                                */
 /* ------------------------------------------------------------------ */
 
-function renderNode(node: SceneNode, index: number): React.ReactNode {
+function renderNode(node: SceneNode, index: number, blinded: boolean): React.ReactNode {
   switch (node.type) {
     /**
      * `presentation.ts` emits ordinary SVG transform strings and react-native-svg parses that
@@ -98,7 +98,7 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
     case 'group': {
       return (
         <G key={index} transform={node.transform}>
-          {node.children.map((child, i) => renderNode(child, i))}
+          {node.children.map((child, i) => renderNode(child, i, blinded))}
         </G>
       );
     }
@@ -166,7 +166,14 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
         />
       );
 
-    case 'text':
+    case 'text': {
+      /**
+       * A `verdict` names the pattern the model has settled into, so it goes while a
+       * pattern-discrimination question is unanswered — the web hides the same class through
+       * `[data-blinded='true'] .verdict`. Only the verdict: the `label` line beside it lists the
+       * findings, and reading the findings is the exercise rather than a way around it.
+       */
+      if (blinded && node.cls === 'verdict') return null;
       const ts = clsStyle(node.cls);
       return (
         <SvgText
@@ -186,6 +193,7 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
           {node.text}
         </SvgText>
       );
+    }
 
     case 'vessel':
       // Simplified: draw the static path; flow animation deferred to later
@@ -238,9 +246,11 @@ function renderNode(node: SceneNode, index: number): React.ReactNode {
 
 interface DiagramViewProps {
   frame: FrameNode;
+  /** True while a pattern-discrimination question is unanswered; withholds the verdict text. */
+  blinded?: boolean;
 }
 
-export function DiagramView({ frame }: DiagramViewProps) {
+export function DiagramView({ frame, blinded = false }: DiagramViewProps) {
   const [vx, vy, vw, vh] = frame.viewBox;
   return (
     <Svg
@@ -279,7 +289,7 @@ export function DiagramView({ frame }: DiagramViewProps) {
           })}
         </Defs>
       )}
-      {frame.children.map((node, i) => renderNode(node, i))}
+      {frame.children.map((node, i) => renderNode(node, i, blinded))}
     </Svg>
   );
 }

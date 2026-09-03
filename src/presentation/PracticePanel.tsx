@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import type { NativeLoopConfig } from '../hooks/useNativeEngineLoop';
 import {
@@ -50,6 +50,9 @@ export interface PracticePanelProps {
   /** Apply a prediction question's SETUP then INTERVENTION to the live simulator so the
    *  learner can watch the watched quantity play out. */
   onRunQuestion?: (questionId: string) => void;
+  /** Reports whether any pattern-discrimination question is still unanswered, so the readout
+   *  grid can withhold the tiles that would name the answer. */
+  onBlindedChange?: (blinded: boolean) => void;
 }
 
 type Phase = 'idle' | 'committed';
@@ -167,8 +170,19 @@ export function PracticePanel({
   questions,
   onOpenScenario,
   onRunQuestion,
+  onBlindedChange,
 }: PracticePanelProps) {
   const isDark = useColorScheme() === 'dark';
+
+  const [committed, setCommitted] = useState<ReadonlySet<string>>(() => new Set());
+  const commit = useCallback((questionId: string) => {
+    setCommitted((prev) => (prev.has(questionId) ? prev : new Set(prev).add(questionId)));
+  }, []);
+
+  const blinded = questions.some((q) => isPatternQuestion(q) && !committed.has(q.id));
+  useEffect(() => {
+    onBlindedChange?.(blinded);
+  }, [blinded, onBlindedChange]);
 
   const outcomes = useMemo(() => {
     const map = new Map<string, PredictOutcome | null>();
@@ -216,6 +230,7 @@ export function PracticePanel({
               panel={patternPanels.get(q.id) ?? null}
               accent={accent}
               onOpenScenario={onOpenScenario}
+              onCommit={commit}
             />
           );
         }
@@ -240,6 +255,8 @@ export function PracticePanel({
 /* ------------------------------------------------------------------ */
 
 interface PatternRowProps {
+  /** Called once, when the learner commits an answer, so the panel can stop blinding. */
+  onCommit: (questionId: string) => void;
    
   question: ModuleQuestion<any, any, any>;
   panel: ReturnType<typeof readPanel> | null;
@@ -247,7 +264,7 @@ interface PatternRowProps {
   onOpenScenario?: (presetId: string) => void;
 }
 
-function PatternPracticeRow({ question, panel, accent, onOpenScenario }: PatternRowProps) {
+function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit }: PatternRowProps) {
   const [phase, setPhase] = useState<'idle' | 'committed'>('idle');
   const [picked, setPicked] = useState<string | null>(null);
   const isDark = useColorScheme() === 'dark';
@@ -265,6 +282,7 @@ function PatternPracticeRow({ question, panel, accent, onOpenScenario }: Pattern
     if (phase === 'committed') return;
     setPicked(ans);
     setPhase('committed');
+    onCommit(question.id);
   };
 
   const correct = picked === styled.answer;

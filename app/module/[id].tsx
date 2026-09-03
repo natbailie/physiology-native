@@ -1635,6 +1635,9 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
     [adapter, reset, perturb],
   );
 
+  // Withholds the readouts that would name the answer while a pattern question is unanswered.
+  const [blinded, setBlinded] = useState(false);
+
   return (
     <ScrollView style={[styles.container, isDark && styles.containerDark]} contentContainerStyle={styles.content}>
       {/* Without this the stack header reads the route pattern, "module/[id]". The module name
@@ -1647,9 +1650,9 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         actions={actions}
       />
       {presentation.diagram.map((frame, i) => (
-        <DiagramView key={frame.key ?? i} frame={frame} />
+        <DiagramView key={frame.key ?? i} frame={frame} blinded={blinded} />
       ))}
-      <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} />
+      <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
       {presentation.charts.length > 0 && (
         <>
           <BaselineBar
@@ -1680,6 +1683,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         accent={adapter.accent}
         onOpenScenario={applyPreset}
         onRunQuestion={runQuestion}
+        onBlindedChange={setBlinded}
       />
     </ScrollView>
   );
