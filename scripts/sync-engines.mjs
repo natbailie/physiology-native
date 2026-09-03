@@ -155,6 +155,9 @@ function buildManifest() {
     { web: 'src/shared/assessment/useProgressStore.ts', native: 'src/shared/assessment/useProgressStore.ts' },
     { web: 'src/shared/assessment/useQuizSession.ts', native: 'src/shared/assessment/useQuizSession.ts' },
     { web: 'src/billing/config.ts', native: 'src/billing/config.ts' },
+    { web: 'src/billing/useEntitlement.ts', native: 'src/billing/useEntitlement.ts' },
+    { web: 'src/billing/licence.ts', native: 'src/billing/licence.ts' },
+    { web: 'src/shared/assessment/useModulePractice.ts', native: 'src/shared/assessment/useModulePractice.ts' },
   ];
 
   for (const [webModule, nativeModule] of Object.entries(MODULES)) {
