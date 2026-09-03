@@ -135,6 +135,7 @@ function buildManifest() {
     { web: 'src/shared/assessment/types.ts', native: 'src/shared/assessment/types.ts' },
     { web: 'src/shared/assessment/verifyQuestion.ts', native: 'src/shared/assessment/verifyQuestion.ts' },
     { web: 'src/shared/assessment/verifyPattern.ts', native: 'src/shared/assessment/verifyPattern.ts' },
+    { web: 'src/theme/tokens.generated.ts', native: 'src/presentation/tokens.generated.ts' },
   ];
 
   for (const [webModule, nativeModule] of Object.entries(MODULES)) {

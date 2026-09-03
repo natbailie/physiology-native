@@ -39,7 +39,7 @@ interface ReadoutTileProps {
 function ReadoutTile({ label, value, unit, secondary, colorToken, wide, withheld }: ReadoutTileProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const accent = lookupColor(colorToken);
+  const accent = lookupColor(colorToken, isDark ? 'dark' : 'light');
 
   return (
     <View style={[styles.tile, wide && styles.tileWide, isDark && styles.tileDark]}>

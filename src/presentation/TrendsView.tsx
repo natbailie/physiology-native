@@ -1,14 +1,25 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Svg, { Circle, Path, Line, Text as SvgText } from 'react-native-svg';
 import type { ChartSpec, ChartContext, OdCurveSpec, SparklineSpec } from './types';
-import { lookupColor } from './palette';
+import { lookupColor, type ThemeName } from './palette';
 
 /** A trace whose token has no colour falls back to the neutral text grey rather than to black:
  * a chart line is still readable in grey, and a black one reads as deliberate. */
-function resolveColor(token?: string, def: string = '#64748b'): string {
-  return lookupColor(token) ?? def;
+function resolveColor(token: string | undefined, theme: ThemeName, def: string = '#64748b'): string {
+  return lookupColor(token, theme) ?? def;
 }
+
+function useThemeName(): ThemeName {
+  return useColorScheme() === 'dark' ? 'dark' : 'light';
+}
+
+/** The chart's own chrome — card, axes, title — which is not a schema colour. Mirrors the
+ *  surface tokens the readout tiles already switch on. */
+const CHROME = {
+  light: { card: '#ffffff', axis: '#e2e8f0', title: '#64748b' },
+  dark: { card: '#1e293b', axis: '#334155', title: '#94a3b8' },
+} as const;
 
 /* ------------------------------------------------------------------ */
 /*  Shared plot geometry                                                */
@@ -44,6 +55,8 @@ interface SparklineProps<History> {
 }
 
 function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<History>) {
+  const theme = useThemeName();
+  const chrome = CHROME[theme];
   const values = spec.data(history);
   const baselineValues = spec.secondaryData
     ? spec.secondaryData(history)
@@ -51,16 +64,17 @@ function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<H
       ? spec.data(baselineHistory)
       : null;
   const d = toPoints(values, spec.domainMin, spec.domainMax);
-  const color = resolveColor(spec.colorToken);
-  const baselineColor =
-    spec.secondaryColorToken ? resolveColor(spec.secondaryColorToken) : resolveColor('baseline', '#94a3b8');
+  const color = resolveColor(spec.colorToken, theme);
+  const baselineColor = spec.secondaryColorToken
+    ? resolveColor(spec.secondaryColorToken, theme)
+    : resolveColor('baseline', theme);
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.chartTitle}>{spec.label}{spec.unit ? ` (${spec.unit})` : ''}</Text>
+    <View style={[styles.card, { backgroundColor: chrome.card }]}>
+      <Text style={[styles.chartTitle, { color: chrome.title }]}>{spec.label}{spec.unit ? ` (${spec.unit})` : ''}</Text>
       <Svg width={PLOT_W} height={PLOT_H} viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
-        <Line x1={PAD_X} y1={PAD_Y} x2={PLOT_W - PAD_X} y2={PAD_Y} stroke="#e2e8f0" strokeWidth={1} />
-        <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke="#e2e8f0" strokeWidth={1} />
+        <Line x1={PAD_X} y1={PAD_Y} x2={PLOT_W - PAD_X} y2={PAD_Y} stroke={chrome.axis} strokeWidth={1} />
+        <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         {baselineValues && baselineValues.length > 1 && (
           <Path d={toPoints(baselineValues, spec.domainMin, spec.domainMax)} stroke={baselineColor} strokeWidth={1.5} fill="none" opacity={0.55} strokeDasharray="3,3" />
         )}
@@ -80,6 +94,8 @@ interface OdCurveProps<Derived> {
 }
 
 function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
+  const theme = useThemeName();
+  const chrome = CHROME[theme];
   const [xMin, xMax] = spec.xDomain;
   const [yMin, yMax] = spec.yDomain;
   const xSpan = xMax - xMin || 1;
@@ -99,21 +115,21 @@ function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
   const ctx: ChartContext<Derived> = { derived };
   const cx = px(Math.max(xMin, Math.min(xMax, spec.currentX(ctx))));
   const cy = py(Math.max(yMin, Math.min(yMax, spec.currentY(ctx))));
-  const color = resolveColor(spec.colorToken);
+  const color = resolveColor(spec.colorToken, theme);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: chrome.card }]}>
       {/* The web titles these the same way, from the spec rather than a constant: an od-curve
           is not always the oxygen curve (muscleContraction plots length-tension and
           force-velocity through the same spec). */}
-      <Text style={styles.chartTitle}>{spec.yLabel} vs {spec.xLabel}</Text>
+      <Text style={[styles.chartTitle, { color: chrome.title }]}>{spec.yLabel} vs {spec.xLabel}</Text>
       <Svg width={PLOT_W} height={PLOT_H} viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
-        <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke="#cbd5e1" strokeWidth={1} />
-        <Line x1={PAD_X} y1={PAD_Y} x2={PAD_X} y2={PLOT_H - PAD_Y} stroke="#cbd5e1" strokeWidth={1} />
+        <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
+        <Line x1={PAD_X} y1={PAD_Y} x2={PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         <Path d={samples.join(' ')} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
         <Circle cx={cx} cy={cy} r={4.5} fill={color} />
-        <SvgText x={PAD_X} y={PLOT_H - 2} fontSize={8} fill="#94a3b8">{spec.xLabel}</SvgText>
-        <SvgText x={2} y={PAD_Y + 6} fontSize={8} fill="#94a3b8">{spec.yLabel}</SvgText>
+        <SvgText x={PAD_X} y={PLOT_H - 2} fontSize={8} fill={chrome.title}>{spec.xLabel}</SvgText>
+        <SvgText x={2} y={PAD_Y + 6} fontSize={8} fill={chrome.title}>{spec.yLabel}</SvgText>
       </Svg>
     </View>
   );

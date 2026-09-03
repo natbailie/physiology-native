@@ -1,4 +1,5 @@
 import React from 'react';
+import { useColorScheme } from 'react-native';
 import Svg, {
   Circle,
   ClipPath,
@@ -13,7 +14,7 @@ import Svg, {
 } from 'react-native-svg';
 import type { FrameNode, SceneNode } from './types';
 import { renderOrgan } from './organs';
-import { resolveColor } from './palette';
+import { resolveColor, type ThemeName } from './palette';
 
 /* ------------------------------------------------------------------ */
 /*  CSS-class-aware styling (the web renders `cls` via CSS modules)    */
@@ -35,45 +36,67 @@ interface ClsStyle {
   dash?: string;
 }
 
-const CLS_STYLES: Record<string, ClsStyle> = {
-  plotGrid: { stroke: '#e2e8f0', strokeWidth: 1 },
-  plotAxis: { stroke: '#64748b', strokeWidth: 1.2 },
-  axisLabel: { fill: '#64748b', fontSize: 8 },
-  isopleth: { stroke: '#b4500c', strokeWidth: 1, dash: '3,4', opacity: 0.5 },
-  isoplethLabel: { fill: '#b4500c', fontSize: 7, opacity: 0.85 },
-  bufferLine: { stroke: '#177d36', strokeWidth: 1.6, opacity: 0.75 },
+/**
+ * The diagram classes, as token names rather than hex.
+ *
+ * The web resolves `cls` through CSS: the eleven shared text classes in
+ * `shared/styles/diagramText.module.css`, plus each module's own `Diagram.module.css`. Native has
+ * no cascade, so the shared sheet is transcribed here and resolved per theme — holding light hex
+ * directly, as this did, meant every one of these drew in light-mode ink on the dark background.
+ *
+ * This covers the SHARED sheet. The per-module classes (`chamber`, `tissue`, `tank`, ...) are not
+ * here: 52 of the 72 `cls` values the presentations use come from a module's own stylesheet, many
+ * of them through `color-mix()` and the `styleVars` custom properties, and porting those is its
+ * own piece of work. A class with no entry simply goes unstyled.
+ */
+const CLS_TOKENS: Record<string, Omit<ClsStyle, 'stroke' | 'fill'> & { stroke?: string; fill?: string }> = {
+  /* --- the shared diagramText sheet --- */
+  anatomy: { fill: 'text-dim', fontSize: 11, fontWeight: '500' },
+  anatomyStrong: { fill: 'text', fontSize: 12, fontWeight: '600' },
+  axis: { stroke: 'panel-border', strokeWidth: 1 },
+  tickLabel: { fill: 'text-faint', fontSize: 9 },
+  label: { fill: 'text-dim', fontSize: 11 },
+  caption: { fill: 'text-faint', fontSize: 11 },
+  organLabel: { fill: 'text', fontSize: 11, fontWeight: '600' },
+  pathLabel: { fill: 'text-dim', fontSize: 9 },
+  valueLabel: { fill: 'text', fontSize: 9 },
+  alarm: { fill: 'danger', fontSize: 12 },
+  verdict: { fill: 'text', fontSize: 9, fontWeight: '600' },
+
+  /* --- native-only plot chrome, for the charts drawn inside a diagram frame --- */
+  verdictMixed: { fill: 'danger', fontSize: 9, fontWeight: '600' },
+  plotGrid: { stroke: 'grid-line', strokeWidth: 1 },
+  plotAxis: { stroke: 'text-faint', strokeWidth: 1.2 },
+  axisLabel: { fill: 'text-faint', fontSize: 8 },
+  isopleth: { stroke: 'co2', strokeWidth: 1, dash: '3,4', opacity: 0.5 },
+  isoplethLabel: { fill: 'co2', fontSize: 7, opacity: 0.85 },
+  bufferLine: { stroke: 'bicarb', strokeWidth: 1.6, opacity: 0.75 },
   // The normal-status marker is a hollow dashed ring, not a disc — it marks where a healthy
   // person sits so the live point can be read against it, and a filled marker would compete
   // with the live point for the eye.
-  normalPoint: { fill: 'none', stroke: '#64748b', strokeWidth: 1.2, dash: '2,2' },
-  livePoint: { fill: '#c2258c', stroke: '#ffffff', strokeWidth: 1.5 },
-  trail: { stroke: '#c2258c', strokeWidth: 1.6, fill: 'none', opacity: 0.45 },
-  baselineTrail: { stroke: '#64748b', strokeWidth: 1.4, fill: 'none', dash: '3,3', opacity: 0.55 },
-  regionLabel: { fill: '#64748b', fontSize: 7, opacity: 0.85 },
-  verdict: { fill: '#0f172a', fontSize: 9, fontWeight: '600' },
-  verdictMixed: { fill: '#c62828', fontSize: 9, fontWeight: '600' },
-  pathLabel: { fill: '#475569', fontSize: 9 },
-  organLabel: { fill: '#0f172a', fontSize: 11, fontWeight: '600' },
-  label: { fill: '#475569', fontSize: 11 },
-  caption: { fill: '#64748b', fontSize: 11 },
-  alarm: { fill: '#c62828', fontSize: 12 },
-  valueLabel: { fill: '#0f172a', fontSize: 9 },
+  normalPoint: { fill: 'none', stroke: 'text-faint', strokeWidth: 1.2, dash: '2,2' },
+  livePoint: { fill: 'ph', stroke: 'panel', strokeWidth: 1.5 },
+  trail: { stroke: 'ph', strokeWidth: 1.6, fill: 'none', opacity: 0.45 },
+  baselineTrail: { stroke: 'text-faint', strokeWidth: 1.4, fill: 'none', dash: '3,3', opacity: 0.55 },
+  regionLabel: { fill: 'text-faint', fontSize: 7, opacity: 0.85 },
 };
 
-function clsStyle(cls: string | undefined): ClsStyle {
+
+function clsStyle(cls: string | undefined, theme: ThemeName): ClsStyle {
   if (!cls) return {};
-  return CLS_STYLES[cls] ?? {};
+  const spec = CLS_TOKENS[cls];
+  if (!spec) return {};
+  return {
+    ...spec,
+    stroke: spec.stroke === undefined ? undefined : resolveColor(spec.stroke, theme),
+    fill: spec.fill === undefined || spec.fill === 'none' ? spec.fill : resolveColor(spec.fill, theme),
+  };
 }
 
 /**
- * A path's fill. The schema's paths are overwhelmingly stroke-only — isopleths, trails, buffer
- * lines — and the web gets `fill: none` for them from the CSS module. Native has no such sheet, so
- * an unfilled path must default to `'none'` here; falling back to a colour would paint an isopleth
- * curve as a solid black wedge over the plot. A fill is only ever drawn when the node or its class
- * explicitly asks for one. (`colorToken` is the stroke colour, as on the web, never the fill.)
- */
-/**
- * An absent fill is `none`, never a colour.
+ * An absent fill is `none`, never a colour. The schema's paths are overwhelmingly stroke-only —
+ * isopleths, trails, buffer lines — and the web gets `fill: none` for them from the CSS module.
+ * (`colorToken` is the stroke colour, as on the web, never the fill.)
  *
  * `resolveColor` answers `#000000` for a token it does not know, which is a reasonable last
  * resort for a stroke and a disaster for a fill: 38 of the 97 rect nodes across the module
@@ -81,9 +104,9 @@ function clsStyle(cls: string | undefined): ClsStyle {
  * — shockStates rendered both heart chambers as filled squares over the circuit behind them.
  * Paths already went through here; circles and rects now do too.
  */
-function pathFill(fill: string | undefined, style: ClsStyle): string {
+function pathFill(fill: string | undefined, style: ClsStyle, theme: ThemeName): string {
   if (fill === 'none') return 'none';
-  if (fill) return resolveColor(fill);
+  if (fill) return resolveColor(fill, theme);
   return style.fill ?? 'none';
 }
 
@@ -91,7 +114,14 @@ function pathFill(fill: string | undefined, style: ClsStyle): string {
 /*  Scene node renderer                                                */
 /* ------------------------------------------------------------------ */
 
-function renderNode(node: SceneNode, index: number, blinded: boolean): React.ReactNode {
+/** What every node needs from the frame around it: the active theme for colour resolution, and
+ *  whether a pattern question is withholding its answer. */
+interface RenderCtx {
+  theme: ThemeName;
+  blinded: boolean;
+}
+
+function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.ReactNode {
   switch (node.type) {
     /**
      * `presentation.ts` emits ordinary SVG transform strings and react-native-svg parses that
@@ -107,19 +137,19 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
     case 'group': {
       return (
         <G key={index} transform={node.transform}>
-          {node.children.map((child, i) => renderNode(child, i, blinded))}
+          {node.children.map((child, i) => renderNode(child, i, ctx))}
         </G>
       );
     }
 
     case 'path': {
-      const ps = clsStyle(node.cls);
+      const ps = clsStyle(node.cls, ctx.theme);
       return (
         <Path
           key={index}
           d={node.d}
-          stroke={ps.stroke ?? resolveColor(node.colorToken)}
-          fill={pathFill(node.fill, ps)}
+          stroke={ps.stroke ?? resolveColor(node.colorToken, ctx.theme)}
+          fill={pathFill(node.fill, ps, ctx.theme)}
           strokeWidth={ps.strokeWidth ?? node.strokeWidth ?? 1}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -132,14 +162,14 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
     }
 
     case 'circle': {
-      const cs = clsStyle(node.cls);
+      const cs = clsStyle(node.cls, ctx.theme);
       return (
         <Circle
           key={index}
           cx={node.cx}
           cy={node.cy}
           r={node.r}
-          fill={pathFill(node.fill, cs)}
+          fill={pathFill(node.fill, cs, ctx.theme)}
           stroke={cs.stroke}
           strokeWidth={cs.strokeWidth}
           strokeDasharray={cs.dash}
@@ -149,7 +179,7 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
     }
 
     case 'rect': {
-      const rs = clsStyle(node.cls);
+      const rs = clsStyle(node.cls, ctx.theme);
       return (
         <Rect
           key={index}
@@ -157,7 +187,7 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
           y={node.y}
           width={node.width}
           height={node.height}
-          fill={pathFill(node.fill, rs)}
+          fill={pathFill(node.fill, rs, ctx.theme)}
           stroke={rs.stroke}
           strokeWidth={rs.strokeWidth}
           strokeDasharray={rs.dash}
@@ -174,10 +204,10 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
           y1={node.y1}
           x2={node.x2}
           y2={node.y2}
-          stroke={clsStyle(node.cls).stroke ?? resolveColor(node.colorToken)}
-          strokeWidth={clsStyle(node.cls).strokeWidth ?? 1}
-          strokeDasharray={clsStyle(node.cls).dash}
-          opacity={clsStyle(node.cls).opacity}
+          stroke={clsStyle(node.cls, ctx.theme).stroke ?? resolveColor(node.colorToken, ctx.theme)}
+          strokeWidth={clsStyle(node.cls, ctx.theme).strokeWidth ?? 1}
+          strokeDasharray={clsStyle(node.cls, ctx.theme).dash}
+          opacity={clsStyle(node.cls, ctx.theme).opacity}
         />
       );
 
@@ -188,14 +218,20 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
        * `[data-blinded='true'] .verdict`. Only the verdict: the `label` line beside it lists the
        * findings, and reading the findings is the exercise rather than a way around it.
        */
-      if (blinded && node.cls === 'verdict') return null;
-      const ts = clsStyle(node.cls);
+      if (ctx.blinded && node.cls === 'verdict') return null;
+      const ts = clsStyle(node.cls, ctx.theme);
+      // Text with neither a class nor a colour token is body text, not black: the label
+      // "Right heart" carries no colour of its own and resolved to #000000, invisible against
+      // the dark theme's background.
+      const textFill =
+        ts.fill ??
+        (node.colorToken ? resolveColor(node.colorToken, ctx.theme) : resolveColor('text', ctx.theme));
       return (
         <SvgText
           key={index}
           x={node.x}
           y={node.y}
-          fill={ts.fill ?? resolveColor(node.colorToken)}
+          fill={textFill}
           fontSize={ts.fontSize ?? 12}
           fontWeight={ts.fontWeight}
           fontStyle={ts.fontStyle}
@@ -216,7 +252,7 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
         <Path
           key={index}
           d={node.path}
-          stroke={resolveColor(node.colorToken)}
+          stroke={resolveColor(node.colorToken, ctx.theme)}
           strokeWidth={node.width ?? 2}
           fill="none"
           strokeLinecap="round"
@@ -230,7 +266,7 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
         <G key={index}>
           <Path
             d={node.path}
-            stroke={resolveColor(node.colorToken)}
+            stroke={resolveColor(node.colorToken, ctx.theme)}
             strokeWidth={1.5}
             fill="none"
             strokeDasharray={node.inhibitory ? '4,4' : undefined}
@@ -241,7 +277,7 @@ function renderNode(node: SceneNode, index: number, blinded: boolean): React.Rea
           <SvgText
             x={node.labelX}
             y={node.labelY}
-            fill={resolveColor(node.colorToken)}
+            fill={resolveColor(node.colorToken, ctx.theme)}
             fontSize={10}
             textAnchor="middle"
           >
@@ -266,6 +302,8 @@ interface DiagramViewProps {
 }
 
 export function DiagramView({ frame, blinded = false }: DiagramViewProps) {
+  const theme: ThemeName = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const ctx: RenderCtx = { theme, blinded };
   const [vx, vy, vw, vh] = frame.viewBox;
   return (
     <Svg
@@ -287,7 +325,7 @@ export function DiagramView({ frame, blinded = false }: DiagramViewProps) {
                   refY={4}
                   orient="auto"
                 >
-                  <Path d="M0,0 L8,4 L0,8 Z" fill={resolveColor(def.colorToken)} />
+                  <Path d="M0,0 L8,4 L0,8 Z" fill={resolveColor(def.colorToken, theme)} />
                 </Marker>
               );
             }
@@ -304,7 +342,7 @@ export function DiagramView({ frame, blinded = false }: DiagramViewProps) {
           })}
         </Defs>
       )}
-      {frame.children.map((node, i) => renderNode(node, i, blinded))}
+      {frame.children.map((node, i) => renderNode(node, i, ctx))}
     </Svg>
   );
 }
