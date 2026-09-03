@@ -16,34 +16,27 @@
     "doctor": "expo-doctor"
   },
   "dependencies": {
-    "@expo/vector-icons": "~14.0.4",
-    "expo": "~52.0.0",
-    "expo-asset": "~11.0.5",
-    "expo-constants": "~17.0.8",
-    "expo-linking": "~7.0.5",
-    "expo-router": "~4.0.0",
-    "expo-status-bar": "~2.0.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "react-native": "0.76.9",
-    "react-native-safe-area-context": "4.12.0",
-    "react-native-screens": "~4.4.0",
-    "react-native-svg": "15.8.0",
-    "react-native-web": "~0.19.13"
-  },
-  "expo": {
-    "install": {
-      "//": "eslint-config-expo is deliberately ahead of the version SDK 52 pins: only v57+ ships a flat config (eslint.config.js) and the react-hooks v6 rules, one of which caught a ref read during render in useNativeEngineLoop.ts. It is a lint-time-only dependency and never reaches the bundle.",
-      "exclude": [
-        "eslint-config-expo"
-      ]
-    }
+    "@expo/vector-icons": "^15.0.2",
+    "expo": "^57.0.0",
+    "expo-asset": "~57.0.16",
+    "expo-constants": "~57.0.17",
+    "expo-font": "~57.0.3",
+    "expo-linking": "~57.0.9",
+    "expo-router": "~57.0.18",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@types/react": "~18.3.0",
+    "@types/react": "~19.2.4",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^57.0.2",
-    "typescript": "^5.3.0"
+    "typescript": "~6.0.3"
   }
 }

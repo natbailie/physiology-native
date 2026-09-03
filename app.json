@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "scheme": "physiology",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bentara.physiology"
@@ -19,7 +18,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ]
   }
 }
