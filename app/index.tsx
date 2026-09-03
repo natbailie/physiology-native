@@ -31,6 +31,25 @@ function accentOf(module: ModuleDescriptor, isDark: boolean): string | undefined
  * the question index — so this is the first screen to exercise manifest.generated.ts and the
  * on-device progress store.
  */
+/** The two non-simulator pages, which the registry marks by having no `theme`. */
+function UtilityLinks({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={styles.utilityRow}>
+      {[
+        { href: '/reference', label: 'Formula Reference' },
+        { href: '/medications', label: 'Medications' },
+        { href: '/account', label: 'Account' },
+      ].map((item) => (
+        <Link key={item.href} href={item.href} asChild>
+          <Pressable style={({ pressed }) => [styles.utility, isDark && styles.utilityDark, pressed && styles.cardPressed]}>
+            <Text style={[styles.utilityText, isDark && styles.textLight]}>{item.label}</Text>
+          </Pressable>
+        </Link>
+      ))}
+    </View>
+  );
+}
+
 function StudyStrip({ totals, streak, isDark }: { totals: ProgressTotals; streak: number; isDark: boolean }) {
   const parts = [
     totals.due > 0 ? `${totals.due} due` : null,
@@ -89,7 +108,12 @@ export default function HomeScreen() {
         data={SIMULATORS}
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.list}
-        ListHeaderComponent={<StudyStrip totals={totals} streak={store.streak()} isDark={isDark} />}
+        ListHeaderComponent={
+          <>
+            <StudyStrip totals={totals} streak={store.streak()} isDark={isDark} />
+            <UtilityLinks isDark={isDark} />
+          </>
+        }
         renderItem={({ item }) => (
           <ModuleCard module={item} isDark={isDark} progress={progress[item.id]} />
         )}
@@ -120,6 +144,15 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 17, fontWeight: '600', color: '#0f172a', marginBottom: 4 },
   cardTagline: { fontSize: 14, color: '#64748b', lineHeight: 20 },
   cardDue: { fontSize: 12, fontWeight: '600', marginTop: 6 },
+  utilityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  utility: {
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  utilityDark: { backgroundColor: '#1e293b' },
+  utilityText: { fontSize: 13, fontWeight: '600', color: '#0f172a' },
   strip: { paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
   stripDark: {},
   stripText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
