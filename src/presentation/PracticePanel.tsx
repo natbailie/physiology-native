@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { InteractionManager, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import type { NativeLoopConfig } from '../hooks/useNativeEngineLoop';
 import {
   DIRECTION_CHOICES,
@@ -192,35 +192,51 @@ export function PracticePanel({
     onBlindedChange?.(blinded);
   }, [blinded, onBlindedChange]);
 
-  const outcomes = useMemo(() => {
-    const map = new Map<string, PredictOutcome | null>();
-    for (const q of questions) {
-      if (isPatternQuestion(q)) {
-        map.set(q.id, null);
-      } else {
-        const res = runQuestion(config, defaults, presets, q as never);
-        const decimals = 2;
-        map.set(q.id, {
-          before: res.before,
-          after: res.after,
-          observed: res.observed,
-          matches: res.matches,
-          decimals,
-        } satisfies PredictOutcome);
-      }
-    }
-    return map;
-  }, [config, defaults, presets, questions]);
+  /**
+   * Settling every question against the engine, off the render path.
+   *
+   * This is not cheap: a module carries up to sixteen questions, each settled twice — before and
+   * after its intervention — at `settleSeconds / maxDtSeconds` steps a time. Glucose alone is
+   * 3600s at 0.25s, so 14,400 steps per settle. Doing that inside a `useMemo` ran the whole lot
+   * synchronously during render, freezing the JS thread before the screen had drawn once.
+   *
+   * It runs after the navigation animation instead, and the rows render without it: a prediction
+   * row needs its outcome only once revealed, and a pattern row needs its panel only once
+   * committed, so both are null-tolerant by construction.
+   */
+  const [settled, setSettled] = useState<{
+    outcomes: Map<string, PredictOutcome | null>;
+    patternPanels: Map<string, ReturnType<typeof readPanel> | null>;
+  } | null>(null);
 
-  // Precomputed pattern panels (settled once, all options).
-  const patternPanels = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof readPanel> | null>();
-    for (const q of questions) {
-      if (!isPatternQuestion(q)) continue;
-      const res = runPatternQuestion(config, defaults, presets, q as never);
-      map.set(q.id, res.panels.get((q as { answer: string }).answer) ?? null);
-    }
-    return map;
+  useEffect(() => {
+    let live = true;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!live) return;
+      const outcomes = new Map<string, PredictOutcome | null>();
+      const patternPanels = new Map<string, ReturnType<typeof readPanel> | null>();
+      for (const q of questions) {
+        if (isPatternQuestion(q)) {
+          outcomes.set(q.id, null);
+          const res = runPatternQuestion(config, defaults, presets, q as never);
+          patternPanels.set(q.id, res.panels.get((q as { answer: string }).answer) ?? null);
+        } else {
+          const res = runQuestion(config, defaults, presets, q as never);
+          outcomes.set(q.id, {
+            before: res.before,
+            after: res.after,
+            observed: res.observed,
+            matches: res.matches,
+            decimals: 2,
+          } satisfies PredictOutcome);
+        }
+      }
+      if (live) setSettled({ outcomes, patternPanels });
+    });
+    return () => {
+      live = false;
+      task.cancel();
+    };
   }, [config, defaults, presets, questions]);
 
   return (
@@ -235,7 +251,7 @@ export function PracticePanel({
             <PatternPracticeRow
               key={q.id}
               question={q as never}
-              panel={patternPanels.get(q.id) ?? null}
+              panel={settled?.patternPanels.get(q.id) ?? null}
               accent={accent}
               onOpenScenario={onOpenScenario}
               onCommit={commit}
@@ -248,7 +264,7 @@ export function PracticePanel({
             key={q.id}
              
             question={q as any}
-            outcome={outcomes.get(q.id) ?? null}
+            outcome={settled?.outcomes.get(q.id) ?? null}
             accent={accent}
             onOpenScenario={onOpenScenario}
             onRunQuestion={onRunQuestion}

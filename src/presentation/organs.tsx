@@ -3,6 +3,10 @@ import { Circle, ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-na
 import type { OrganName } from './types';
 import { useColorScheme } from 'react-native';
 import { resolveColor, type ThemeName } from './palette';
+// Byte-identical to what three module presentations already import, so they come from the one
+// file-synced source rather than a second copy that can drift. HEART_PATH and LUNG_PATH below
+// have no upstream equivalent — the web draws those two organs in its own components.
+import { KIDNEY_PATH, LIVER_PATH, PANCREAS_PATH } from './organShapes';
 
 /** The active theme, for the organ palettes below. Each organ resolves its own colours rather
  *  than taking them as props, so each reads the scheme for itself. */
@@ -14,10 +18,6 @@ function useThemeName(): ThemeName {
 /*  Organ shape paths (from the web project's shared organShapes.ts)   */
 /* ------------------------------------------------------------------ */
 
-export const PANCREAS_PATH = 'M-32,-6 C-30,-14 -18,-16 -6,-14 C10,-12 26,-8 34,0 C30,8 14,10 -2,8 C-16,6 -28,4 -32,-6 Z';
-export const LIVER_PATH = 'M-38,-16 C-16,-26 20,-26 38,-14 C42,4 30,22 6,26 C-14,29 -34,20 -40,2 C-41,-5 -40,-12 -38,-16 Z';
-export const KIDNEY_PATH =
-  'M-8,-32 C10,-36 24,-22 22,-4 C21,6 10,4 6,13 C2,21 10,26 18,24 C26,34 14,44 -2,42 C-20,39 -26,18 -22,-2 C-19,-20 -18,-28 -8,-32 Z';
 export const HEART_PATH = 'M0,-12 C-16,-28 -40,-12 -40,8 C-40,28 -16,36 0,48 C16,36 40,28 40,8 C40,-12 16,-28 0,-12 Z';
 export const LUNG_PATH =
   'M0,-38 C18,-40 30,-14 28,14 C26,38 14,50 0,50 C-2,50 -4,49 -6,48 C-16,42 -24,26 -24,4 C-24,-20 -14,-38 0,-38 Z';
