@@ -24,6 +24,7 @@ module.exports = [
       'src/engine/*/*.ts',
       '!src/engine/*/nativeLoopConfig.ts',
       '!src/engine/*/adapter.ts',
+      '!src/engine/*/diagramClasses.ts',
       'src/shared/assessment/**',
       'src/shared/lib/**',
       'src/shared/explainer/**',

@@ -1,6 +1,7 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
 import { inflammationContent } from './content';
+import { diagramClasses } from './diagramClasses';
 import { inflammationNativeLoopConfig } from './nativeLoopConfig';
 import { buildInflammationPresentation } from './presentation';
 import {
@@ -31,6 +32,7 @@ export const adapter: ModuleAdapter<InflammationInternalState, InflammationInput
   order: INFLAMMATION_PRESET_ORDER,
   questions: INFLAMMATION_QUESTIONS,
   content: inflammationContent,
+  diagramClasses,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'New insult', onPress: () => perturb((s) => perturbNewInsult(s, 50)), variant: 'impulse' },

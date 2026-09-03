@@ -1,6 +1,7 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
 import { renalTubularContent } from './content';
+import { diagramClasses } from './diagramClasses';
 import { renalTubularNativeLoopConfig } from './nativeLoopConfig';
 import { buildRenalTubularPresentation } from './presentation';
 import {
@@ -31,6 +32,7 @@ export const adapter: ModuleAdapter<RenalTubularState, RenalTubularInputs, Renal
   order: RENAL_TUBULAR_PRESET_ORDER,
   questions: RENAL_TUBULAR_QUESTIONS,
   content: renalTubularContent,
+  diagramClasses,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Water deprivation', onPress: () => perturb((s) => perturbWaterDeprivation(s, 120)), variant: 'impulse' },

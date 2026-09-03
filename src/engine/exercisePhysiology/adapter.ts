@@ -1,6 +1,7 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
 import { exercisePhysiologyContent } from './content';
+import { diagramClasses } from './diagramClasses';
 import { exercisePhysiologyNativeLoopConfig } from './nativeLoopConfig';
 import { buildExercisePhysiologyPresentation } from './presentation';
 import {
@@ -31,6 +32,7 @@ export const adapter: ModuleAdapter<ExerciseInternalState, ExerciseInputs, Exerc
   order: EXERCISE_PRESET_ORDER,
   questions: EXERCISE_QUESTIONS,
   content: exercisePhysiologyContent,
+  diagramClasses,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Sprint surge', onPress: () => perturb((s) => perturbSprintSurge(s)), variant: 'impulse' },

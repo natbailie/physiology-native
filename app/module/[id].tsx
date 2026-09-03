@@ -153,7 +153,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         actions={actions}
       />
       {presentation.diagram.map((frame, i) => (
-        <DiagramView key={frame.key ?? i} frame={frame} blinded={blinded} />
+        <DiagramView key={frame.key ?? i} frame={frame} blinded={blinded} classes={adapter.diagramClasses} />
       ))}
       <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
       {presentation.charts.length > 0 && (

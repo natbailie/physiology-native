@@ -1,6 +1,7 @@
 import type { ModuleAdapter } from '../adapterTypes';
 import type { PresentationContext } from '../../presentation/types';
 import { visionContent } from './content';
+import { diagramClasses } from './diagramClasses';
 import { visionNativeLoopConfig } from './nativeLoopConfig';
 import { buildVisionPresentation } from './presentation';
 import {
@@ -31,6 +32,7 @@ export const adapter: ModuleAdapter<VisionInternalState, VisionInputs, VisionDer
   order: VISION_PRESET_ORDER,
   questions: VISION_QUESTIONS,
   content: visionContent,
+  diagramClasses,
   presetActiveKey: (id: string) => id,
   actions: (inputs, perturb) => [
     { label: 'Lights out', onPress: () => perturb((s) => perturbLightsOut(s)), variant: 'impulse' },

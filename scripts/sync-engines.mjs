@@ -57,10 +57,12 @@ const isCopiedEngineFile = (name) =>
 
 /** Native files in a synced directory that are hand-written here and have no web source. */
 const NATIVE_ONLY = new Set([
-  // Per-module and hand-written: the loop plumbing, and the wiring between a module's engine,
-  // presets and buttons that the web states inside each `<Name>Page.tsx`.
+  // Per-module and hand-written: the loop plumbing, the wiring between a module's engine,
+  // presets and buttons that the web states inside each `<Name>Page.tsx`, and the diagram classes
+  // ported from its own Diagram.module.css.
   'nativeLoopConfig.ts',
   'adapter.ts',
+  'diagramClasses.ts',
   // Beside them in src/engine: the adapter's type, and the generated loader manifest.
   'adapterTypes.ts',
   'adapters.generated.ts',

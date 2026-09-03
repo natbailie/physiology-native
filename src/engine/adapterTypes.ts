@@ -2,6 +2,7 @@ import type { ModulePresentation, PresentationContext } from '../presentation/ty
 import type { NativeLoopConfig } from '../hooks/useNativeEngineLoop';
 import type { ModuleQuestion } from '../shared/assessment/types';
 import type { ExplainerContent } from '../shared/explainer/types';
+import type { DiagramClasses } from '../presentation/diagramClassTypes';
 
 /**
  * How one module is driven on the native side.
@@ -44,6 +45,14 @@ export interface ModuleAdapter<TState, TInputs, TDerived, THistoryPoint> {
    * to absorb.
    */
   content: ExplainerContent;
+  /**
+   * This module's diagram classes, ported from its own `Diagram.module.css`.
+   *
+   * Absent for a module whose diagram only uses the shared text classes. Per module rather than
+   * global because the web scopes these with CSS modules and the same name means different
+   * things in different ones.
+   */
+  diagramClasses?: DiagramClasses;
   presetActiveKey: (id: string) => string;
   actions: (
     inputs: TInputs,

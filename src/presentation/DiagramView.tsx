@@ -12,9 +12,14 @@ import Svg, {
   Text as SvgText,
   type FontStyle,
 } from 'react-native-svg';
-import type { FrameNode, SceneNode } from './types';
+import type { FrameNode, SceneNode, StyleVars } from './types';
 import { renderOrgan } from './organs';
 import { resolveColor, type ThemeName } from './palette';
+import {
+  resolveClsValue,
+  type ClsSpec,
+  type DiagramClasses,
+} from './diagramClassTypes';
 
 /* ------------------------------------------------------------------ */
 /*  CSS-class-aware styling (the web renders `cls` via CSS modules)    */
@@ -25,15 +30,19 @@ import { resolveColor, type ThemeName } from './palette';
  * is no CSS, so each class resolves to inline stroke/fill/weight here. Unknown classes fall back
  * to sensible generic values rather than erroring, so a newly-authored diagram degrades gracefully.
  */
+/** A class after resolution: colours as hex, styleVar-driven values as numbers. */
 interface ClsStyle {
   stroke?: string;
   fill?: string;
+  fillOpacity?: number;
   strokeWidth?: number;
   fontSize?: number;
   fontWeight?: string;
   fontStyle?: FontStyle;
   opacity?: number;
   dash?: string;
+  linecap?: 'butt' | 'round' | 'square';
+  anchor?: 'start' | 'middle' | 'end';
 }
 
 /**
@@ -49,7 +58,7 @@ interface ClsStyle {
  * of them through `color-mix()` and the `styleVars` custom properties, and porting those is its
  * own piece of work. A class with no entry simply goes unstyled.
  */
-const CLS_TOKENS: Record<string, Omit<ClsStyle, 'stroke' | 'fill'> & { stroke?: string; fill?: string }> = {
+const SHARED_CLASSES: DiagramClasses = {
   /* --- the shared diagramText sheet --- */
   anatomy: { fill: 'text-dim', fontSize: 11, fontWeight: '500' },
   anatomyStrong: { fill: 'text', fontSize: 12, fontWeight: '600' },
@@ -82,14 +91,34 @@ const CLS_TOKENS: Record<string, Omit<ClsStyle, 'stroke' | 'fill'> & { stroke?: 
 };
 
 
-function clsStyle(cls: string | undefined, theme: ThemeName): ClsStyle {
+/**
+ * Resolves a class name for one node.
+ *
+ * The module's own table wins over the shared one, which is what CSS-module scoping does on the
+ * web: a module that defines `.chamber` means its own, and only the eleven shared text classes
+ * are global. `styleVars` are the node's — a class may set its width or opacity from one, which
+ * is how a diagram shows a quantity rather than stating it.
+ */
+function clsStyle(
+  cls: string | undefined,
+  theme: ThemeName,
+  classes: DiagramClasses,
+  styleVars?: StyleVars,
+): ClsStyle {
   if (!cls) return {};
-  const spec = CLS_TOKENS[cls];
+  const spec: ClsSpec | undefined = classes[cls] ?? SHARED_CLASSES[cls];
   if (!spec) return {};
   return {
-    ...spec,
     stroke: spec.stroke === undefined ? undefined : resolveColor(spec.stroke, theme),
     fill: spec.fill === undefined || spec.fill === 'none' ? spec.fill : resolveColor(spec.fill, theme),
+    fillOpacity: resolveClsValue(spec.fillOpacity, theme, styleVars),
+    strokeWidth: resolveClsValue(spec.strokeWidth, theme, styleVars),
+    opacity: resolveClsValue(spec.opacity, theme, styleVars),
+    dash: spec.dash,
+    linecap: spec.linecap,
+    fontSize: spec.fontSize,
+    fontWeight: spec.fontWeight,
+    anchor: spec.anchor,
   };
 }
 
@@ -119,6 +148,8 @@ function pathFill(fill: string | undefined, style: ClsStyle, theme: ThemeName): 
 interface RenderCtx {
   theme: ThemeName;
   blinded: boolean;
+  /** The module's own class table; the shared one is consulted after it. */
+  classes: DiagramClasses;
 }
 
 function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.ReactNode {
@@ -143,15 +174,16 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
     }
 
     case 'path': {
-      const ps = clsStyle(node.cls, ctx.theme);
+      const ps = clsStyle(node.cls, ctx.theme, ctx.classes, node.styleVars);
       return (
         <Path
           key={index}
           d={node.d}
           stroke={ps.stroke ?? resolveColor(node.colorToken, ctx.theme)}
           fill={pathFill(node.fill, ps, ctx.theme)}
+          fillOpacity={ps.fillOpacity}
           strokeWidth={ps.strokeWidth ?? node.strokeWidth ?? 1}
-          strokeLinecap="round"
+          strokeLinecap={ps.linecap ?? 'round'}
           strokeLinejoin="round"
           strokeDasharray={ps.dash}
           opacity={ps.opacity}
@@ -162,7 +194,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
     }
 
     case 'circle': {
-      const cs = clsStyle(node.cls, ctx.theme);
+      const cs = clsStyle(node.cls, ctx.theme, ctx.classes, node.styleVars);
       return (
         <Circle
           key={index}
@@ -170,6 +202,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           cy={node.cy}
           r={node.r}
           fill={pathFill(node.fill, cs, ctx.theme)}
+          fillOpacity={cs.fillOpacity}
           stroke={cs.stroke}
           strokeWidth={cs.strokeWidth}
           strokeDasharray={cs.dash}
@@ -179,7 +212,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
     }
 
     case 'rect': {
-      const rs = clsStyle(node.cls, ctx.theme);
+      const rs = clsStyle(node.cls, ctx.theme, ctx.classes, node.styleVars);
       return (
         <Rect
           key={index}
@@ -188,6 +221,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           width={node.width}
           height={node.height}
           fill={pathFill(node.fill, rs, ctx.theme)}
+          fillOpacity={rs.fillOpacity}
           stroke={rs.stroke}
           strokeWidth={rs.strokeWidth}
           strokeDasharray={rs.dash}
@@ -196,7 +230,10 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
       );
     }
 
-    case 'line':
+    case 'line': {
+      // A LineNode carries no styleVars of its own, and this used to resolve the class four
+      // times over — once per attribute.
+      const ls = clsStyle(node.cls, ctx.theme, ctx.classes);
       return (
         <Line
           key={index}
@@ -204,12 +241,14 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           y1={node.y1}
           x2={node.x2}
           y2={node.y2}
-          stroke={clsStyle(node.cls, ctx.theme).stroke ?? resolveColor(node.colorToken, ctx.theme)}
-          strokeWidth={clsStyle(node.cls, ctx.theme).strokeWidth ?? 1}
-          strokeDasharray={clsStyle(node.cls, ctx.theme).dash}
-          opacity={clsStyle(node.cls, ctx.theme).opacity}
+          stroke={ls.stroke ?? resolveColor(node.colorToken, ctx.theme)}
+          strokeWidth={ls.strokeWidth ?? 1}
+          strokeDasharray={ls.dash}
+          strokeLinecap={ls.linecap}
+          opacity={ls.opacity}
         />
       );
+    }
 
     case 'text': {
       /**
@@ -219,7 +258,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
        * findings, and reading the findings is the exercise rather than a way around it.
        */
       if (ctx.blinded && node.cls === 'verdict') return null;
-      const ts = clsStyle(node.cls, ctx.theme);
+      const ts = clsStyle(node.cls, ctx.theme, ctx.classes, node.styleVars);
       // Text with neither a class nor a colour token is body text, not black: the label
       // "Right heart" carries no colour of its own and resolved to #000000, invisible against
       // the dark theme's background.
@@ -237,7 +276,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           fontStyle={ts.fontStyle}
           textAnchor={
             node.anchor === 'middle' ? 'middle' :
-            node.anchor === 'end' ? 'end' : 'start'
+            node.anchor === 'end' ? 'end' : ts.anchor ?? 'start'
           }
           opacity={ts.opacity ?? node.opacity}
         >
@@ -297,13 +336,15 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
 
 interface DiagramViewProps {
   frame: FrameNode;
+  /** The module's ported Diagram.module.css. Absent modules fall back to the shared classes. */
+  classes?: DiagramClasses;
   /** True while a pattern-discrimination question is unanswered; withholds the verdict text. */
   blinded?: boolean;
 }
 
-export function DiagramView({ frame, blinded = false }: DiagramViewProps) {
+export function DiagramView({ frame, blinded = false, classes = {} }: DiagramViewProps) {
   const theme: ThemeName = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const ctx: RenderCtx = { theme, blinded };
+  const ctx: RenderCtx = { theme, blinded, classes };
   const [vx, vy, vw, vh] = frame.viewBox;
   return (
     <Svg
