@@ -17,10 +17,18 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const revenueCatPublicKey = process.env.EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY;
 
-/** A function rather than a constant, matching the web module: the tutor's dev-vs-edge-function
- *  route is tested by stubbing the environment per call. */
+/**
+ * False here, always, and deliberately not `__DEV__`.
+ *
+ * The only thing this gates in shared code is the tutor's endpoint: `useChat` sends to the
+ * same-origin `/api/chat` in development and to the deployed edge function otherwise. That dev
+ * route is a Vite middleware (see `tutorDevRoute` in the web project's vite.config.ts), and it
+ * has no native equivalent — `fetch('/api/chat')` has no origin to resolve against under React
+ * Native and would simply fail. So this app always talks to the edge function, in development as
+ * in production, and the tutor needs EXPO_PUBLIC_SUPABASE_URL set to work at all.
+ */
 export function isDev(): boolean {
-  return __DEV__;
+  return false;
 }
 
 export { supabaseUrl, supabaseAnonKey, revenueCatPublicKey };

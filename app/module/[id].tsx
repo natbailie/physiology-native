@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, ScrollView, Text, View, useColorScheme } from 'react-native';
 import { DiagramView } from '../../src/presentation/DiagramView';
@@ -8,11 +8,13 @@ import { TrendsView } from '../../src/presentation/TrendsView';
 import { ScenarioBar } from '../../src/presentation/ScenarioBar';
 import { PracticePanel } from '../../src/presentation/PracticePanel';
 import { ExplainerView } from '../../src/presentation/ExplainerView';
+import { TutorPanel } from '../../src/presentation/TutorPanel';
 import { useProgressStore } from '../../src/shared/assessment/useProgressStore';
 import { useNativeEngineLoop } from '../../src/hooks/useNativeEngineLoop';
 import { adapterLoaders } from '../../src/engine/adapters.generated';
 import type { AnyModuleAdapter, ModuleAdapter } from '../../src/engine/adapterTypes';
 import { MODULES } from '../../src/home/moduleRegistry';
+import { useEntitlement } from '../../src/billing/useEntitlement';
 import { lookupColor } from '../../src/presentation/palette';
 
 /** A pattern question has an `options` field; a prediction question has an intervention. */
@@ -177,6 +179,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         onOpenScenario={applyPreset}
         presetLabels={adapter.labels}
       />
+      <TutorPanel moduleId={moduleId} accent={accent} />
       <PracticePanel
          
         config={adapter.config as any}
@@ -219,6 +222,8 @@ export default function ModuleScreen() {
    * entry, and clearing it in the effect would be a setState during render's commit — which is
    * what `react-hooks/set-state-in-effect` is there to catch.
    */
+  const entitlement = useEntitlement();
+
   const [loaded, setLoaded] = useState<{ id: string; adapter: AnyModuleAdapter } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
 
@@ -248,6 +253,46 @@ export default function ModuleScreen() {
     );
   }
 
+  /**
+   * Resolved before the guards below, all of which use it. `accentColorVar` is a CSS reference —
+   * `var(--artery)` — and a handful of registry entries carry none, so the muted text grey is the
+   * fallback.
+   */
+  const accent =
+    lookupColor(descriptor.accentColorVar?.match(/^var\(--([a-z0-9-]+)\)$/)?.[1], isDark ? 'dark' : 'light') ??
+    '#64748b';
+
+  /**
+   * The paywall. Three systems are free and the rest need full access, which is what the web
+   * gates on — this app shipped all 45 free, which was simply a leak.
+   *
+   * `useEntitlement` reads the state from Supabase, so an institutional seat or a subscription
+   * bought on the web both unlock here with no purchase code in this app at all.
+   */
+  if (entitlement.status !== 'loading' && !entitlement.isUnlocked(moduleId)) {
+    return (
+      <View style={[styles.center, styles.locked]}>
+        <Stack.Screen options={{ title: descriptor.name }} />
+        <Text style={[styles.lockedTitle, isDark && styles.textLight]}>{descriptor.name}</Text>
+        <Text style={[styles.errorText, isDark && styles.textMuted]}>
+          This simulator is part of full access.
+        </Text>
+        {/* The styling sits on an inner View, not on the Pressable: `Link asChild` forwards its
+            own props onto the child, and its undefined `style` clobbers one set here. Same shape
+            as the cards on the home screen. */}
+        <Link href="/pricing" asChild>
+          <Pressable>
+            {({ pressed }) => (
+              <View style={[styles.lockedButton, { backgroundColor: accent }, pressed && styles.optionPressed]}>
+                <Text style={styles.lockedButtonText}>See full access</Text>
+              </View>
+            )}
+          </Pressable>
+        </Link>
+      </View>
+    );
+  }
+
   if (failed === moduleId) {
     return (
       <View style={styles.center}>
@@ -258,10 +303,6 @@ export default function ModuleScreen() {
       </View>
     );
   }
-
-  const accent =
-    lookupColor(descriptor.accentColorVar?.match(/^var\(--([a-z0-9-]+)\)$/)?.[1], isDark ? 'dark' : 'light') ??
-    '#64748b';
 
   if (!adapter) {
     return (
@@ -287,7 +328,11 @@ const styles = StyleSheet.create({
   containerDark: { backgroundColor: '#0f172a' },
   content: { padding: 16, gap: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { fontSize: 16, color: '#64748b' },
+  errorText: { fontSize: 16, color: '#64748b', textAlign: 'center' },
+  locked: { padding: 32, gap: 12 },
+  lockedTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', textAlign: 'center' },
+  lockedButton: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 4 },
+  lockedButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   textLight: { color: '#e2e8f0' },
   textMuted: { color: '#94a3b8' },
   baselineBar: {

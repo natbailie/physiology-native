@@ -89,6 +89,7 @@ const ANCHORS = {
   '@/medications/drugs': 'src/medications/drugs',
   '@/reference/formulas': 'src/reference/formulas',
   '@/lib/supabase': 'src/lib/supabase',
+  '@/lib/env': 'src/lib/env',
   '@/auth/AuthContext': 'src/auth/AuthContext',
   '@/shared/hooks/useEngineLoop': 'src/hooks/useNativeEngineLoop',
   // Every module's content.ts, and the tutor's corpus reader, take only the CONTENT SHAPE from
@@ -180,6 +181,7 @@ function buildManifest() {
     { web: 'src/shared/chat/retrieve.ts', native: 'src/shared/chat/retrieve.ts' },
     { web: 'src/shared/chat/corpusAnswer.ts', native: 'src/shared/chat/corpusAnswer.ts' },
     { web: 'src/shared/chat/systemPrompt.ts', native: 'src/shared/chat/systemPrompt.ts' },
+    { web: 'src/shared/chat/useChat.ts', native: 'src/shared/chat/useChat.ts' },
     { web: 'src/shared/glossary/terms.ts', native: 'src/shared/glossary/terms.ts' },
     { web: 'src/medications/drugs.ts', native: 'src/medications/drugs.ts' },
     { web: 'src/reference/formulas.ts', native: 'src/reference/formulas.ts' },

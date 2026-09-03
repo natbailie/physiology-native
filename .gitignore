@@ -3,6 +3,11 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+
+# Local credentials. EXPO_PUBLIC_* values are compiled into the bundle a learner downloads,
+# so only publishable keys belong here — the same rule the web project's .env.example states.
+.env
+.env.local
 *.log
 .DS_Store
 ios/
