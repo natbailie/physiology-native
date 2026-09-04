@@ -1,8 +1,10 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import type { ControlSpec } from './types';
 import { lookupColor } from './palette';
+import { FONT, RADIUS, SPACE, TAP, useAppTheme, withAlpha } from './theme';
+import { selectionTick } from './haptics';
 
 /* ------------------------------------------------------------------ */
 /*  Slider                                                             */
@@ -32,10 +34,17 @@ interface SliderProps {
  * state; at 24pt the text glyphs alone were below the accessible touch target.
  */
 function SliderControl({ label, value, min, max, step, unit, format, onChange, accent }: SliderProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const decrement = () => onChange(Math.max(min, +(value - step).toFixed(6)));
-  const increment = () => onChange(Math.min(max, +(value + step).toFixed(6)));
+  const { color } = useAppTheme();
+  const decrement = () => {
+    if (value <= min) return;
+    selectionTick();
+    onChange(Math.max(min, +(value - step).toFixed(6)));
+  };
+  const increment = () => {
+    if (value >= max) return;
+    selectionTick();
+    onChange(Math.min(max, +(value + step).toFixed(6)));
+  };
 
   const displayValue = format === 'percent'
     ? `${Math.round(value * 100)}%`
@@ -46,26 +55,40 @@ function SliderControl({ label, value, min, max, step, unit, format, onChange, a
   return (
     <View style={styles.sliderBlock}>
       <View style={styles.sliderRow}>
-        <Text style={[styles.sliderLabel, isDark && styles.textLight]}>{label}</Text>
+        <Text style={[styles.sliderLabel, { color: color.text }]} numberOfLines={2}>
+          {label}
+        </Text>
         <View style={styles.stepperRow}>
           <Pressable
             onPress={decrement}
-            hitSlop={8}
+            disabled={value <= min}
+            accessibilityRole="button"
             accessibilityLabel={`Decrease ${label}`}
-            style={({ pressed }) => [styles.stepperBtnBox, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.stepperBtnBox,
+              { backgroundColor: withAlpha(accent, 0.12) },
+              value <= min && styles.stepperDisabled,
+              pressed && styles.pressed,
+            ]}
           >
-            <Text style={[styles.stepperBtn, isDark && styles.stepperBtnDark]}>−</Text>
+            <Text style={[styles.stepperBtn, { color: accent }]}>−</Text>
           </Pressable>
-          <Text style={[styles.sliderValue, isDark && styles.textLight]}>
+          <Text style={[styles.sliderValue, { color: color.text }]}>
             {displayValue}{unit ? ` ${unit}` : ''}
           </Text>
           <Pressable
             onPress={increment}
-            hitSlop={8}
+            disabled={value >= max}
+            accessibilityRole="button"
             accessibilityLabel={`Increase ${label}`}
-            style={({ pressed }) => [styles.stepperBtnBox, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.stepperBtnBox,
+              { backgroundColor: withAlpha(accent, 0.12) },
+              value >= max && styles.stepperDisabled,
+              pressed && styles.pressed,
+            ]}
           >
-            <Text style={[styles.stepperBtn, isDark && styles.stepperBtnDark]}>+</Text>
+            <Text style={[styles.stepperBtn, { color: accent }]}>+</Text>
           </Pressable>
         </View>
       </View>
@@ -76,9 +99,12 @@ function SliderControl({ label, value, min, max, step, unit, format, onChange, a
         step={step}
         onValueChange={onChange}
         minimumTrackTintColor={accent}
-        maximumTrackTintColor={isDark ? '#334155' : '#e2e8f0'}
+        maximumTrackTintColor={color.panelBorder}
         thumbTintColor={accent}
         accessibilityLabel={label}
+        // The track is 4pt tall and the thumb is drawn to it. Giving the control real height
+        // makes the whole strip draggable rather than only the thumb itself.
+        style={styles.slider}
       />
     </View>
   );
@@ -93,30 +119,42 @@ interface ToggleGroupProps {
   value: string;
   options: readonly { value: string; label: string }[];
   onChange: (value: string) => void;
+  accent: string;
 }
 
-function ToggleGroup({ label, value, options, onChange }: ToggleGroupProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+function ToggleGroup({ label, value, options, onChange, accent }: ToggleGroupProps) {
+  const { color } = useAppTheme();
   return (
-    <View style={styles.toggleContainer}>
-      <Text style={[styles.sliderLabel, isDark && styles.textLight]}>{label}</Text>
+    <View style={[styles.toggleContainer, { borderBottomColor: color.panelBorder }]}>
+      <Text style={[styles.sliderLabel, { color: color.text }]}>{label}</Text>
       <View style={styles.toggleRow}>
         {options.map((opt) => {
           const selected = opt.value === value;
           return (
-            <Text
+            // Was a bare <Text onPress>, which is not a touch target: no pressed state, no
+            // accessibility role, and a hit area the height of one line of 13pt text.
+            <Pressable
               key={opt.value}
-              style={[
+              onPress={() => {
+                if (selected) return;
+                selectionTick();
+                onChange(opt.value);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              style={({ pressed }) => [
                 styles.toggleOption,
-                isDark && styles.toggleOptionDark,
-                selected && styles.toggleOptionSelected,
-                selected && isDark && styles.toggleOptionSelectedDark,
+                {
+                  backgroundColor: selected ? accent : color.panelRaised,
+                  borderColor: selected ? accent : color.panelBorder,
+                },
+                pressed && styles.pressed,
               ]}
-              onPress={() => onChange(opt.value)}
             >
-              {opt.label}
-            </Text>
+              <Text style={[styles.toggleOptionText, { color: selected ? color.onSolid : color.textDim }]}>
+                {opt.label}
+              </Text>
+            </Pressable>
           );
         })}
       </View>
@@ -154,6 +192,7 @@ export function ControlRailView<Inputs>({
               value={value}
               options={[...spec.options]}
               onChange={(v) => onChange?.(spec.key as keyof Inputs, v as Inputs[keyof Inputs])}
+              accent={accent ?? lookupColor('artery') ?? '#64748b'}
             />
           );
         }
@@ -178,45 +217,38 @@ export function ControlRailView<Inputs>({
 }
 
 const styles = StyleSheet.create({
-  rail: { gap: 12 },
+  rail: { gap: SPACE.lg },
   sliderBlock: { gap: 2 },
-  stepperBtnBox: { paddingHorizontal: 4, paddingVertical: 2 },
   pressed: { opacity: 0.5 },
   sliderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e2e8f0',
+    gap: SPACE.md,
   },
-  sliderLabel: { fontSize: 15, color: '#0f172a', flex: 1 },
-  sliderValue: { fontSize: 14, color: '#64748b', minWidth: 80, textAlign: 'right' },
-  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepperBtn: {
-    fontSize: 20,
-    color: '#3b82f6',
-    fontWeight: '600',
-    width: 28,
-    height: 28,
-    textAlign: 'center',
-    lineHeight: 28,
-    overflow: 'hidden',
+  sliderLabel: { fontSize: FONT.sm, flex: 1 },
+  sliderValue: { fontSize: FONT.sm, fontWeight: '600', minWidth: 84, textAlign: 'center' },
+  slider: { height: TAP },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
+  // 44x44, which is the iOS minimum. These were 24pt text glyphs with hitSlop 8 — 40pt at best,
+  // and invisible as targets until pressed.
+  stepperBtnBox: {
+    width: TAP,
+    height: TAP,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepperBtnDark: { color: '#60a5fa' },
-  toggleContainer: { paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e2e8f0' },
-  toggleRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  stepperDisabled: { opacity: 0.35 },
+  stepperBtn: { fontSize: FONT.xl, fontWeight: '600', lineHeight: FONT.xl + 4 },
+  toggleContainer: { paddingBottom: SPACE.md, borderBottomWidth: StyleSheet.hairlineWidth, gap: SPACE.md },
+  toggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.md },
   toggleOption: {
-    fontSize: 13,
-    color: '#64748b',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#f1f5f9',
-    overflow: 'hidden',
+    minHeight: TAP - 8,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.xl,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
   },
-  toggleOptionDark: { backgroundColor: '#1e293b', color: '#94a3b8' },
-  toggleOptionSelected: { backgroundColor: '#3b82f6', color: '#ffffff' },
-  toggleOptionSelectedDark: { backgroundColor: '#2563eb' },
-  textLight: { color: '#e2e8f0' },
+  toggleOptionText: { fontSize: FONT.xs, fontWeight: '600' },
 });

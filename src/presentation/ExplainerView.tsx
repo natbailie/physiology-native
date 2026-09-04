@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ExplainerContent } from '../shared/explainer/types';
+import { FONT, LINE, RADIUS, SPACE, TAP, useAppTheme, withAlpha } from './theme';
 
 /**
  * The module's explainer prose, from the file-synced `content.ts`.
  *
- * Collapsed by default. The web can afford to have this open beside the simulator; on a phone the
- * prose is several screens long and would push the controls below the fold, so it opens on
- * request. A section's `demos` become buttons that load the scenario the paragraph is about,
- * which is the same affordance the web's ExplainerPanel offers.
+ * Open by default now that it has a tab of its own. It used to be collapsed, and for a good
+ * reason: it sat in the same scroll as the simulator, where several screens of prose would push
+ * the controls below the fold. On the Learn tab it IS the content, and a learner who has just
+ * tapped "Learn" should not have to tap "Read" as well. It stays collapsible, because the
+ * headings are a useful way to skim a long piece.
+ *
+ * A section's `demos` become buttons that load the scenario the paragraph is about, which is the
+ * same affordance the web's ExplainerPanel offers.
  */
 export function ExplainerView({
   content,
@@ -23,32 +28,37 @@ export function ExplainerView({
   /** The module's own labels, so a demo button reads as the scenario bar does. */
   presetLabels?: Record<string, string>;
 }) {
-  const isDark = useColorScheme() === 'dark';
-  const [open, setOpen] = useState(false);
+  const { color } = useAppTheme();
+  const [open, setOpen] = useState(true);
 
   const sections = content.sections ?? [];
   const flat = content.paragraphs ?? [];
 
   return (
-    <View style={[styles.card, isDark && styles.cardDark]}>
-      <Pressable onPress={() => setOpen((v) => !v)} style={styles.header}>
-        <Text style={[styles.title, isDark && styles.textLight]}>{content.title}</Text>
+    <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={styles.header}
+      >
+        <Text style={[styles.title, { color: color.text }]}>{content.title}</Text>
         <Text style={[styles.toggle, { color: accent }]}>{open ? 'Hide' : 'Read'}</Text>
       </Pressable>
 
       {open && (
         <View style={styles.body}>
           {flat.map((paragraph, i) => (
-            <Text key={i} style={[styles.paragraph, isDark && styles.paragraphDark]}>
+            <Text key={i} style={[styles.paragraph, { color: color.textDim }]}>
               {paragraph}
             </Text>
           ))}
 
           {sections.map((section, i) => (
             <View key={i} style={styles.section}>
-              <Text style={[styles.heading, isDark && styles.textLight]}>{section.heading}</Text>
+              <Text style={[styles.heading, { color: color.text }]}>{section.heading}</Text>
               {section.paragraphs.map((paragraph, j) => (
-                <Text key={j} style={[styles.paragraph, isDark && styles.paragraphDark]}>
+                <Text key={j} style={[styles.paragraph, { color: color.textDim }]}>
                   {paragraph}
                 </Text>
               ))}
@@ -58,9 +68,10 @@ export function ExplainerView({
                     <Pressable
                       key={demo.preset}
                       onPress={() => onOpenScenario(demo.preset)}
+                      accessibilityRole="button"
                       style={({ pressed }) => [
                         styles.demoButton,
-                        { borderColor: accent },
+                        { borderColor: accent, backgroundColor: withAlpha(accent, 0.1) },
                         pressed && styles.pressed,
                       ]}
                     >
@@ -68,7 +79,7 @@ export function ExplainerView({
                         {demo.label ?? presetLabels?.[demo.preset] ?? demo.preset}
                       </Text>
                       {demo.watch && (
-                        <Text style={[styles.demoWatch, isDark && styles.paragraphDark]}>
+                        <Text style={[styles.demoWatch, { color: color.textFaint }]}>
                           watch {demo.watch}
                         </Text>
                       )}
@@ -85,20 +96,29 @@ export function ExplainerView({
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#ffffff', borderRadius: 10, padding: 14 },
-  cardDark: { backgroundColor: '#1e293b' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  title: { fontSize: 15, fontWeight: '600', color: '#0f172a', flex: 1 },
-  toggle: { fontSize: 14, fontWeight: '600' },
-  body: { marginTop: 12, gap: 12 },
-  section: { gap: 8 },
-  heading: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginTop: 4 },
-  paragraph: { fontSize: 14, lineHeight: 22, color: '#475569' },
-  paragraphDark: { color: '#cbd5e1' },
-  textLight: { color: '#e2e8f0' },
-  demos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  demoButton: { borderWidth: 1, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
-  demoText: { fontSize: 13, fontWeight: '600' },
-  demoWatch: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  card: { borderWidth: 1, borderRadius: RADIUS.md, padding: SPACE.xl },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACE.lg,
+    minHeight: TAP,
+  },
+  title: { fontSize: FONT.base, fontWeight: '700', flex: 1 },
+  toggle: { fontSize: FONT.sm, fontWeight: '700' },
+  body: { marginTop: SPACE.lg, gap: SPACE.lg },
+  section: { gap: SPACE.md },
+  heading: { fontSize: FONT.sm, fontWeight: '700', marginTop: SPACE.xs },
+  paragraph: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose },
+  demos: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.md, marginTop: SPACE.xs },
+  demoButton: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    minHeight: TAP,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.lg,
+  },
+  demoText: { fontSize: FONT.xs, fontWeight: '700' },
+  demoWatch: { fontSize: FONT.micro, marginTop: 2 },
   pressed: { opacity: 0.6 },
 });

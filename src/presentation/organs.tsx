@@ -1,7 +1,7 @@
 import React from 'react';
 import { Circle, ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { OrganName } from './types';
-import { useColorScheme } from 'react-native';
+import { useAppTheme } from './theme';
 import { resolveColor, type ThemeName } from './palette';
 // Byte-identical to what three module presentations already import, so they come from the one
 // file-synced source rather than a second copy that can drift. HEART_PATH and LUNG_PATH below
@@ -11,7 +11,7 @@ import { KIDNEY_PATH, LIVER_PATH, PANCREAS_PATH } from './organShapes';
 /** The active theme, for the organ palettes below. Each organ resolves its own colours rather
  *  than taking them as props, so each reads the scheme for itself. */
 function useThemeName(): ThemeName {
-  return useColorScheme() === 'dark' ? 'dark' : 'light';
+  return useAppTheme().scheme;
 }
 
 /* ------------------------------------------------------------------ */
@@ -35,10 +35,17 @@ const WASH_SOFT = 0.22;
 const WASH = 0.32;
 const WASH_STRONG = 0.48;
 
-/** The web's shared diagram-text classes: `organLabel` names a structure in `--text`, and the
- * smaller in-diagram detail labels sit in `--text-dim`. */
-const ORGAN_NAME = '#0f172a';
-const ORGAN_DETAIL = '#475569';
+/**
+ * The web's shared diagram-text classes: `organLabel` names a structure in `--text`, and the
+ * smaller in-diagram detail labels sit in `--text-dim`.
+ *
+ * These were two hardcoded LIGHT hex values, which is what the docblock above already said they
+ * should not be. Every organ name — "Heart", "Kidneys", "Liver" — was therefore drawn in
+ * near-black on the dark theme's navy ground and was effectively unreadable, the same bug
+ * `palette.ts` records having fixed for the diagram's other ink.
+ */
+const organName = (theme: ThemeName) => resolveColor('text', theme);
+const organDetail = (theme: ThemeName) => resolveColor('text-dim', theme);
 
 /* ------------------------------------------------------------------ */
 /*  Organ components                                                    */
@@ -66,9 +73,9 @@ function Pancreas({ x, y, params }: OrganProps) {
       <Path d={pancreasShape()} fill={resolveColor('insulin', theme)} fillOpacity={WASH_FAINT} stroke={resolveColor('insulin', theme)} strokeWidth={2} />
       <Circle cx={-12} cy={-3} r={betaR} fill={resolveColor('insulin', theme)} />
       <Circle cx={12} cy={-1} r={alphaR} fill={resolveColor('glucagon', theme)} />
-      <SvgText x={-18} y={-12} fontSize={9} textAnchor="middle" fill={ORGAN_DETAIL}>β</SvgText>
-      <SvgText x={18} y={-10} fontSize={9} textAnchor="middle" fill={ORGAN_DETAIL}>α</SvgText>
-      <SvgText x={0} y={26} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Pancreas</SvgText>
+      <SvgText x={-18} y={-12} fontSize={9} textAnchor="middle" fill={organDetail(theme)}>β</SvgText>
+      <SvgText x={18} y={-10} fontSize={9} textAnchor="middle" fill={organDetail(theme)}>α</SvgText>
+      <SvgText x={0} y={26} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Pancreas</SvgText>
     </G>
   );
 }
@@ -100,7 +107,7 @@ function Liver({ x, y, params }: OrganProps) {
         clipPath={`url(#${clipId})`}
         fillOpacity={glycogenReserve > 0 ? WASH_STRONG + hepaticOutput * 0.12 : 0}
       />
-      <SvgText x={0} y={44} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Liver</SvgText>
+      <SvgText x={0} y={44} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Liver</SvgText>
     </G>
   );
 }
@@ -121,7 +128,7 @@ function Heart({ x, y, params }: OrganProps) {
         strokeWidth={2.5}
         transform={`scale(${heartScale})`}
       />
-      <SvgText x={-34} y={68} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Heart</SvgText>
+      <SvgText x={-34} y={68} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Heart</SvgText>
     </G>
   );
 }
@@ -140,8 +147,8 @@ function Kidneys({ x, y, params }: OrganProps) {
         <Path d={KIDNEY_PATH} fill={resolveColor('kidney', theme)} fillOpacity={gfrIntensity * WASH} stroke={resolveColor('kidney', theme)} strokeWidth={2} />
       </G>
       <Path d="M0,68 L0,96" stroke={resolveColor('urine', theme)} strokeWidth={2.5} strokeDasharray="2,6" strokeLinecap="round" opacity={urineOpacity} />
-      <SvgText x={14} y={90} fontSize={9} fill={ORGAN_DETAIL}>urine</SvgText>
-      <SvgText x={-20} y={112} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Kidneys</SvgText>
+      <SvgText x={14} y={90} fontSize={9} fill={organDetail(theme)}>urine</SvgText>
+      <SvgText x={-20} y={112} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Kidneys</SvgText>
     </G>
   );
 }
@@ -184,7 +191,7 @@ function Lungs({ x, y, params }: OrganProps) {
           )),
         )}
       </G>
-      <SvgText x={0} y={66} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Lungs</SvgText>
+      <SvgText x={0} y={66} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Lungs</SvgText>
     </G>
   );
 }
@@ -200,7 +207,7 @@ function RenalCompensation({ x, y, params }: OrganProps) {
       <G transform="translate(0, 24) scale(-1, 1)">
         <Path d={KIDNEY_PATH} fill={resolveColor('bicarb', theme)} fillOpacity={hco3Intensity * WASH} stroke={resolveColor('bicarb', theme)} strokeWidth={2} />
       </G>
-      <SvgText x={-20} y={54} fontSize={11} fontWeight="600" textAnchor="middle" fill={ORGAN_NAME}>Kidneys</SvgText>
+      <SvgText x={-20} y={54} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Kidneys</SvgText>
     </G>
   );
 }
@@ -212,7 +219,7 @@ function Placeholder({ x, y, name }: OrganProps & { name: string }) {
   return (
     <G transform={"translate(" + x + ", " + y + ")"}>
       <Circle cx={0} cy={0} r={24} fill={resolveColor('baseline', theme)} opacity={0.3} />
-      <SvgText x={0} y={4} fontSize={11} textAnchor="middle" fill={ORGAN_NAME}>{name}</SvgText>
+      <SvgText x={0} y={4} fontSize={11} textAnchor="middle" fill={organName(theme)}>{name}</SvgText>
     </G>
   );
 }

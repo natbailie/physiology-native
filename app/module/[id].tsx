@@ -1,6 +1,7 @@
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, ScrollView, Text, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DiagramView } from '../../src/presentation/DiagramView';
 import { ControlRailView } from '../../src/presentation/ControlRailView';
 import { ReadoutGridView } from '../../src/presentation/ReadoutGridView';
@@ -15,29 +16,72 @@ import { adapterLoaders } from '../../src/engine/adapters.generated';
 import type { AnyModuleAdapter, ModuleAdapter } from '../../src/engine/adapterTypes';
 import { MODULES } from '../../src/home/moduleRegistry';
 import { useEntitlement } from '../../src/billing/useEntitlement';
-import { lookupColor } from '../../src/presentation/palette';
+import { ReadoutStrip } from '../../src/presentation/ReadoutStrip';
+import { SegmentedControl } from '../../src/presentation/SegmentedControl';
+import {
+  accentFrom,
+  FONT,
+  LINE,
+  RADIUS,
+  SPACE,
+  TAP,
+  useAppTheme,
+  withAlpha,
+} from '../../src/presentation/theme';
+
+/**
+ * The three things a learner does with a module, split rather than stacked.
+ *
+ * Everything used to be one ScrollView — scenario bar, diagram, readouts, trends, controls,
+ * explainer, tutor and the whole question bank, in that order. On a phone that is several
+ * screens of scrolling to reach the practice questions, and the explainer sat between the
+ * controls and the questions for no reason other than the order the file was written in.
+ */
+const TABS = [
+  { value: 'simulate' as const, label: 'Simulate' },
+  { value: 'practice' as const, label: 'Practice' },
+  { value: 'learn' as const, label: 'Learn' },
+];
+
+type ModuleTab = (typeof TABS)[number]['value'];
 
 /** A pattern question has an `options` field; a prediction question has an intervention. */
 function isPatternLike(q: any): boolean {
   return Boolean(q && 'options' in q);
 }
 
-function BaselineBar({ hasBaseline, onCapture, onClear }: { hasBaseline: boolean; onCapture: () => void; onClear: () => void }) {
-  const isDark = useColorScheme() === 'dark';
+/** Sits WITH the trends chart it controls rather than above the readouts, which is where it used
+ *  to be — a control for a thing three screens further down. */
+function BaselineBar({
+  hasBaseline,
+  onCapture,
+  onClear,
+  accent,
+}: {
+  hasBaseline: boolean;
+  onCapture: () => void;
+  onClear: () => void;
+  accent: string;
+}) {
+  const { color } = useAppTheme();
   return (
-    <View style={styles.baselineBar}>
-      <Text style={[styles.baselineHint, isDark && styles.textMuted]}>
+    <View style={[styles.baselineBar, { backgroundColor: withAlpha(accent, 0.08) }]}>
+      <Text style={[styles.baselineHint, { color: color.textDim }]}>
         {hasBaseline ? 'Baseline frozen — running trace overlays it' : 'Freeze this trace to compare scenarios'}
       </Text>
-      {hasBaseline ? (
-        <Pressable onPress={onClear} style={({ pressed }) => [styles.baselineButton, pressed && styles.optionPressed]}>
-          <Text style={styles.baselineButtonText}>Clear baseline</Text>
-        </Pressable>
-      ) : (
-        <Pressable onPress={onCapture} style={({ pressed }) => [styles.baselineButton, pressed && styles.optionPressed]}>
-          <Text style={styles.baselineButtonText}>Set baseline</Text>
-        </Pressable>
-      )}
+      <Pressable
+        onPress={hasBaseline ? onClear : onCapture}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.baselineButton,
+          { backgroundColor: accent },
+          pressed && styles.optionPressed,
+        ]}
+      >
+        <Text style={[styles.baselineButtonText, { color: color.onSolid }]}>
+          {hasBaseline ? 'Clear baseline' : 'Set baseline'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -55,8 +99,9 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
   accent: string;
   adapter: ModuleAdapter<TState, TInputs, TDerived, THistoryPoint>;
 }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { color } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const [tab, setTab] = useState<ModuleTab>('simulate');
 
   const [inputs, setInputs] = useState<TInputs>(adapter.defaults);
    
@@ -142,61 +187,109 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
   );
 
   return (
-    <ScrollView style={[styles.container, isDark && styles.containerDark]} contentContainerStyle={styles.content}>
+    <View style={[styles.container, { backgroundColor: color.bg }]}>
       {/* Without this the stack header reads the route pattern, "module/[id]". The module name
           lives there rather than in the page body, which is where a native app expects it. */}
       <Stack.Screen options={{ title: title }} />
-      <ScenarioBar
-        presets={adapter.order.map((id) => ({ id, label: adapter.labels[id] }))}
-        activePreset={activePreset}
-        onApplyPreset={applyPreset}
-        actions={actions}
-      />
-      {presentation.diagram.map((frame, i) => (
-        <DiagramView key={frame.key ?? i} frame={frame} blinded={blinded} classes={adapter.diagramClasses} />
-      ))}
-      <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
-      {presentation.charts.length > 0 && (
-        <>
-          <BaselineBar
-            hasBaseline={baseline.history !== null}
-            onCapture={baseline.capture}
-            onClear={baseline.clear}
-          />
-          <TrendsView
-            charts={presentation.charts}
-            history={history}
-            baselineHistory={baseline.history}
-             
-            derived={snapshot.derived as any}
-          />
-        </>
+
+      {/* Both of these sit OUTSIDE the ScrollView, which is the point of them. The web is a
+          two-column desktop layout with the control rail beside the readouts; here the rail is
+          under them, so without a pinned copy of the headline numbers a learner dragging a slider
+          cannot see the thing the slider moves. That is the whole proposition of the product. */}
+      <View style={[styles.tabBar, { backgroundColor: color.panel, borderBottomColor: color.panelBorder }]}>
+        <SegmentedControl segments={TABS} value={tab} onChange={setTab} accent={accent} />
+      </View>
+      {tab === 'simulate' && (
+        <ReadoutStrip readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
       )}
-      <ControlRailView controls={presentation.controls} inputs={inputs} onChange={handleChange} accent={accent} />
-      <ExplainerView
-        content={adapter.content}
-        accent={accent}
-        onOpenScenario={applyPreset}
-        presetLabels={adapter.labels}
-      />
-      <TutorPanel moduleId={moduleId} accent={accent} />
-      <PracticePanel
-         
-        config={adapter.config as any}
-         
-        defaults={adapter.defaults as any}
-         
-        presets={adapter.presets as any}
-         
-        questions={adapter.questions as any}
-        title={title}
-        accent={accent}
-        onOpenScenario={applyPreset}
-        onRunQuestion={runQuestion}
-        onBlindedChange={setBlinded}
-        onRecord={recordOutcome}
-      />
-    </ScrollView>
+
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}>
+        {tab === 'simulate' && (
+          <>
+            <ScenarioBar
+              presets={adapter.order.map((id) => ({ id, label: adapter.labels[id] }))}
+              activePreset={activePreset}
+              onApplyPreset={applyPreset}
+              actions={actions}
+              accent={accent}
+            />
+            {presentation.diagram.map((frame, i) => (
+              <DiagramView
+                key={frame.key ?? i}
+                frame={frame}
+                blinded={blinded}
+                classes={adapter.diagramClasses}
+              />
+            ))}
+            <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
+            {/* Directly under the readouts, and above the trends — the trends chart is tall, and
+                putting it between the numbers and the controls is what buried the rail. */}
+            <ControlRailView
+              controls={presentation.controls}
+              inputs={inputs}
+              onChange={handleChange}
+              accent={accent}
+            />
+            {presentation.charts.length > 0 && (
+              <>
+                <BaselineBar
+                  hasBaseline={baseline.history !== null}
+                  onCapture={baseline.capture}
+                  onClear={baseline.clear}
+                  accent={accent}
+                />
+                <TrendsView
+                  charts={presentation.charts}
+                  history={history}
+                  baselineHistory={baseline.history}
+                   
+                  derived={snapshot.derived as any}
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {tab === 'practice' && (
+          <PracticePanel
+             
+            config={adapter.config as any}
+             
+            defaults={adapter.defaults as any}
+             
+            presets={adapter.presets as any}
+             
+            questions={adapter.questions as any}
+            title={title}
+            accent={accent}
+            onOpenScenario={applyPreset}
+            onRunQuestion={(questionId) => {
+              runQuestion(questionId);
+              // "Run in simulator" has to actually show the simulator, which it could not do
+              // while everything was one scroll and the question was below the diagram.
+              setTab('simulate');
+            }}
+            onBlindedChange={setBlinded}
+            onRecord={recordOutcome}
+          />
+        )}
+
+        {tab === 'learn' && (
+          <>
+            <ExplainerView
+              content={adapter.content}
+              accent={accent}
+              onOpenScenario={(id) => {
+                applyPreset(id);
+                setTab('simulate');
+              }}
+              presetLabels={adapter.labels}
+            />
+            <TutorPanel moduleId={moduleId} accent={accent} />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -209,8 +302,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
  */
 export default function ModuleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { scheme, color } = useAppTheme();
 
   const moduleId = id ?? '';
   const descriptor = MODULES.find((m) => m.id === moduleId);
@@ -246,9 +338,9 @@ export default function ModuleScreen() {
 
   if (!loader || !descriptor) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: color.bg }]}>
         <Stack.Screen options={{ title: 'Not found' }} />
-        <Text style={[styles.errorText, isDark && styles.textLight]}>Module not found</Text>
+        <Text style={[styles.errorText, { color: color.text }]}>Module not found</Text>
       </View>
     );
   }
@@ -258,9 +350,7 @@ export default function ModuleScreen() {
    * `var(--artery)` — and a handful of registry entries carry none, so the muted text grey is the
    * fallback.
    */
-  const accent =
-    lookupColor(descriptor.accentColorVar?.match(/^var\(--([a-z0-9-]+)\)$/)?.[1], isDark ? 'dark' : 'light') ??
-    '#64748b';
+  const accent = accentFrom(descriptor.accentColorVar, scheme, color.textDim);
 
   /**
    * The paywall. Three systems are free and the rest need full access, which is what the web
@@ -271,10 +361,10 @@ export default function ModuleScreen() {
    */
   if (entitlement.status !== 'loading' && !entitlement.isUnlocked(moduleId)) {
     return (
-      <View style={[styles.center, styles.locked]}>
+      <View style={[styles.center, styles.locked, { backgroundColor: color.bg }]}>
         <Stack.Screen options={{ title: descriptor.name }} />
-        <Text style={[styles.lockedTitle, isDark && styles.textLight]}>{descriptor.name}</Text>
-        <Text style={[styles.errorText, isDark && styles.textMuted]}>
+        <Text style={[styles.lockedTitle, { color: color.text }]}>{descriptor.name}</Text>
+        <Text style={[styles.errorText, { color: color.textDim }]}>
           This simulator is part of full access.
         </Text>
         {/* The styling sits on an inner View, not on the Pressable: `Link asChild` forwards its
@@ -284,7 +374,7 @@ export default function ModuleScreen() {
           <Pressable>
             {({ pressed }) => (
               <View style={[styles.lockedButton, { backgroundColor: accent }, pressed && styles.optionPressed]}>
-                <Text style={styles.lockedButtonText}>See full access</Text>
+                <Text style={[styles.lockedButtonText, { color: color.onSolid }]}>See full access</Text>
               </View>
             )}
           </Pressable>
@@ -295,9 +385,9 @@ export default function ModuleScreen() {
 
   if (failed === moduleId) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: color.bg }]}>
         <Stack.Screen options={{ title: descriptor.name }} />
-        <Text style={[styles.errorText, isDark && styles.textLight]}>
+        <Text style={[styles.errorText, { color: color.text }]}>
           {descriptor.name} could not be loaded
         </Text>
       </View>
@@ -306,7 +396,7 @@ export default function ModuleScreen() {
 
   if (!adapter) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: color.bg }]}>
         <Stack.Screen options={{ title: descriptor.name }} />
         <ActivityIndicator color={accent} />
       </View>
@@ -324,28 +414,36 @@ export default function ModuleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  containerDark: { backgroundColor: '#0f172a' },
-  content: { padding: 16, gap: 16 },
+  container: { flex: 1 },
+  content: { padding: SPACE.xl, gap: SPACE.xl },
+  tabBar: { paddingHorizontal: SPACE.xl, paddingVertical: SPACE.md, borderBottomWidth: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { fontSize: 16, color: '#64748b', textAlign: 'center' },
-  locked: { padding: 32, gap: 12 },
-  lockedTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', textAlign: 'center' },
-  lockedButton: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 4 },
-  lockedButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  textLight: { color: '#e2e8f0' },
-  textMuted: { color: '#94a3b8' },
+  errorText: { fontSize: FONT.base, textAlign: 'center' },
+  locked: { padding: SPACE.xxxl, gap: SPACE.lg },
+  lockedTitle: { fontSize: FONT.xl, fontWeight: '700', textAlign: 'center' },
+  lockedButton: {
+    borderRadius: RADIUS.sm,
+    minHeight: TAP,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.xxl,
+    marginTop: SPACE.xs,
+  },
+  lockedButtonText: { fontSize: FONT.base, fontWeight: '700' },
   baselineBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#eef2ff',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderRadius: RADIUS.sm,
+    padding: SPACE.md,
+    gap: SPACE.md,
   },
-  baselineHint: { fontSize: 12, color: '#475569', flexShrink: 1, paddingRight: 8 },
-  baselineButton: { backgroundColor: '#4f46e5', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  baselineButtonText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
+  baselineHint: { fontSize: FONT.micro, lineHeight: FONT.micro * LINE.snug, flexShrink: 1 },
+  baselineButton: {
+    borderRadius: RADIUS.sm,
+    minHeight: TAP - 8,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.lg,
+  },
+  baselineButtonText: { fontSize: FONT.xs, fontWeight: '700' },
   optionPressed: { opacity: 0.6 },
 });

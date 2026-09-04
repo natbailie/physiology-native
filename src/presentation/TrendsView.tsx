@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Line, Text as SvgText } from 'react-native-svg';
 import type { ChartSpec, ChartContext, OdCurveSpec, SparklineSpec } from './types';
 import { lookupColor, type ThemeName } from './palette';
+import { FONT, RADIUS, SPACE, useAppTheme } from './theme';
 
 /** A trace whose token has no colour falls back to the neutral text grey rather than to black:
  * a chart line is still readable in grey, and a black one reads as deliberate. */
@@ -11,15 +12,15 @@ function resolveColor(token: string | undefined, theme: ThemeName, def: string =
 }
 
 function useThemeName(): ThemeName {
-  return useColorScheme() === 'dark' ? 'dark' : 'light';
+  return useAppTheme().scheme;
 }
 
-/** The chart's own chrome — card, axes, title — which is not a schema colour. Mirrors the
- *  surface tokens the readout tiles already switch on. */
-const CHROME = {
-  light: { card: '#ffffff', axis: '#e2e8f0', title: '#64748b' },
-  dark: { card: '#1e293b', axis: '#334155', title: '#94a3b8' },
-} as const;
+/** The chart's own chrome — card, axes, title — which is not a schema colour, so it comes from
+ *  the surface palette rather than from a hand-written pair of hex tables. */
+function useChrome() {
+  const { color } = useAppTheme();
+  return { card: color.panel, border: color.panelBorder, axis: color.panelBorder, title: color.textDim };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Shared plot geometry                                                */
@@ -56,7 +57,7 @@ interface SparklineProps<History> {
 
 function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<History>) {
   const theme = useThemeName();
-  const chrome = CHROME[theme];
+  const chrome = useChrome();
   const values = spec.data(history);
   const baselineValues = spec.secondaryData
     ? spec.secondaryData(history)
@@ -70,9 +71,13 @@ function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<H
     : resolveColor('baseline', theme);
 
   return (
-    <View style={[styles.card, { backgroundColor: chrome.card }]}>
+    <View style={[styles.card, { backgroundColor: chrome.card, borderColor: chrome.border }]}>
       <Text style={[styles.chartTitle, { color: chrome.title }]}>{spec.label}{spec.unit ? ` (${spec.unit})` : ''}</Text>
-      <Svg width={PLOT_W} height={PLOT_H} viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
+      {/* The viewBox keeps every coordinate above in its own 220x90 space; only the box the SVG
+          is painted into changes. The plot used to be laid out at a literal 220pt, so on a 402pt
+          screen each chart filled a little over half the card and the rest was blank. */}
+      <View style={styles.plot}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
         <Line x1={PAD_X} y1={PAD_Y} x2={PLOT_W - PAD_X} y2={PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         {baselineValues && baselineValues.length > 1 && (
@@ -80,6 +85,7 @@ function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<H
         )}
         {d && <Path d={d} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />}
       </Svg>
+      </View>
     </View>
   );
 }
@@ -95,7 +101,7 @@ interface OdCurveProps<Derived> {
 
 function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
   const theme = useThemeName();
-  const chrome = CHROME[theme];
+  const chrome = useChrome();
   const [xMin, xMax] = spec.xDomain;
   const [yMin, yMax] = spec.yDomain;
   const xSpan = xMax - xMin || 1;
@@ -118,12 +124,13 @@ function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
   const color = resolveColor(spec.colorToken, theme);
 
   return (
-    <View style={[styles.card, { backgroundColor: chrome.card }]}>
+    <View style={[styles.card, { backgroundColor: chrome.card, borderColor: chrome.border }]}>
       {/* The web titles these the same way, from the spec rather than a constant: an od-curve
           is not always the oxygen curve (muscleContraction plots length-tension and
           force-velocity through the same spec). */}
       <Text style={[styles.chartTitle, { color: chrome.title }]}>{spec.yLabel} vs {spec.xLabel}</Text>
-      <Svg width={PLOT_W} height={PLOT_H} viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
+      <View style={styles.plot}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}>
         <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         <Line x1={PAD_X} y1={PAD_Y} x2={PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         <Path d={samples.join(' ')} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
@@ -131,6 +138,7 @@ function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
         <SvgText x={PAD_X} y={PLOT_H - 2} fontSize={8} fill={chrome.title}>{spec.xLabel}</SvgText>
         <SvgText x={2} y={PAD_Y + 6} fontSize={8} fill={chrome.title}>{spec.yLabel}</SvgText>
       </Svg>
+      </View>
     </View>
   );
 }
@@ -170,20 +178,19 @@ export function TrendsView<History, Derived>({
 /* ------------------------------------------------------------------ */
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+  // Stacked full width rather than a wrapping row. The cards used to size to a literal 220pt
+  // plot, so on a phone one fitted per row and the rest of the row was empty.
+  container: { gap: SPACE.md },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 10,
-    gap: 4,
+    width: '100%' as unknown as number,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACE.lg,
+    gap: SPACE.xs,
   },
+  plot: { width: '100%' as unknown as number, aspectRatio: PLOT_W / PLOT_H },
   chartTitle: {
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: FONT.micro,
     fontWeight: '600',
   },
 });

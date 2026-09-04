@@ -1,5 +1,4 @@
 import React from 'react';
-import { useColorScheme } from 'react-native';
 import Svg, {
   Circle,
   ClipPath,
@@ -20,6 +19,7 @@ import {
   type ClsSpec,
   type DiagramClasses,
 } from './diagramClassTypes';
+import { useAppTheme } from './theme';
 
 /* ------------------------------------------------------------------ */
 /*  CSS-class-aware styling (the web renders `cls` via CSS modules)    */
@@ -343,7 +343,9 @@ interface DiagramViewProps {
 }
 
 export function DiagramView({ frame, blinded = false, classes = {} }: DiagramViewProps) {
-  const theme: ThemeName = useColorScheme() === 'dark' ? 'dark' : 'light';
+  // The app's resolved theme, not the device's: with a light/dark toggle on the Account
+  // screen, reading the OS directly would leave every diagram drawn in the other theme's ink.
+  const theme: ThemeName = useAppTheme().scheme;
   const ctx: RenderCtx = { theme, blinded, classes };
   const [vx, vy, vw, vh] = frame.viewBox;
   return (

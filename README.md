@@ -27,8 +27,11 @@ which is the same thing `physiology-app` does without a `.env.local`, and is wor
 
 ## Layout
 
-- `app/` — Expo Router screens. `index` (catalogue), `module/[id]` (the simulator shell),
-  `account`, `pricing`, `reference`, `medications`.
+- `app/` — Expo Router screens. A root stack holds `(tabs)` plus the two screens that push over
+  the tab bar: `module/[id]` (the simulator shell, which wants the full screen height) and
+  `pricing`. The tabs are `(home)` — itself a stack of the catalogue's three tiers, `index`
+  (subjects) → `discipline/[id]` (themes) → `theme/[id]` (modules), mirroring the web's
+  `#home` → `#discipline/<id>` → `#theme/<id>` — plus `reference`, `medications` and `account`.
 - `src/engine/<module>/` — a module's file-synced engine, presentation schema, questions and
   explainer prose, plus two hand-written native files: `nativeLoopConfig.ts` and `adapter.ts`.
 - `src/engine/adapters.generated.ts` — id → lazy `import()` of each adapter. Generated; see below.
@@ -37,7 +40,15 @@ which is the same thing `physiology-app` does without a `.env.local`, and is wor
   means different things in different ones; the eleven shared text classes stay global in
   `DiagramView`.
 - `src/presentation/` — the native renderer: `DiagramView`, `ControlRailView`, `ReadoutGridView`,
-  `TrendsView`, `ScenarioBar`, `PracticePanel`, `ExplainerView`, `TutorPanel`, `organs`.
+  `ReadoutStrip`, `TrendsView`, `ScenarioBar`, `PracticePanel`, `ExplainerView`, `TutorPanel`,
+  `organs`, plus the shell it is all drawn in: `theme.ts` (the design tokens and the
+  light/dark/system preference), `cards/` (the three catalogue tiles, ported from the web's),
+  `StudyStrip`, `StudyReport`, `SegmentedControl`, `ThemeToggle`, `haptics`.
+- `src/presentation/theme.ts` is the only place a colour is named. Every screen reads its palette
+  from there, resolved out of the file-synced `tokens.generated.ts` for both themes — there are no
+  colour literals in `app/`. `StudyStrip` and `StudyReport` are hand-written ports of the web's
+  `src/home/` components and live here rather than beside their counterparts because `src/home` is
+  a sync-policed directory (see SYNCED_ONLY_DIRS in `scripts/sync-engines.mjs`).
 - `src/hooks/useNativeEngineLoop.ts` — the native loop: ref-held state, sub-stepping, bounded
   history, background pause.
 - `src/lib/env.ts`, `src/lib/supabaseOptions.ts` — the two platform seams (below).

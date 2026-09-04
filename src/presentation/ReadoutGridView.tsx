@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { ReadoutSpec } from './types';
 import { lookupColor } from './palette';
+import { FONT, RADIUS, SPACE, useAppTheme } from './theme';
 
 /* ------------------------------------------------------------------ */
 /*  Readout tile                                                       */
@@ -37,27 +38,28 @@ interface ReadoutTileProps {
 }
 
 function ReadoutTile({ label, value, unit, secondary, colorToken, wide, withheld }: ReadoutTileProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const accent = lookupColor(colorToken, isDark ? 'dark' : 'light');
+  const { scheme, color } = useAppTheme();
+  const accent = lookupColor(colorToken, scheme);
 
   return (
-    <View style={[styles.tile, wide && styles.tileWide, isDark && styles.tileDark]}>
-      <Text style={[styles.tileLabel, isDark && styles.tileLabelDark]}>{label}</Text>
+    <View
+      style={[
+        styles.tile,
+        wide && styles.tileWide,
+        { backgroundColor: color.panel, borderColor: color.panelBorder },
+      ]}
+    >
+      <Text style={[styles.tileLabel, { color: color.textDim }]}>{label}</Text>
       <View style={styles.valueRow}>
-        <Text style={[styles.tileValue, isDark && styles.textLight]}>
-          {withheld ? '—' : value}
-        </Text>
-        {unit && !withheld && <Text style={[styles.tileUnit, isDark && styles.tileUnitDark]}>{unit}</Text>}
+        <Text style={[styles.tileValue, { color: color.text }]}>{withheld ? '—' : value}</Text>
+        {unit && !withheld && <Text style={[styles.tileUnit, { color: color.textFaint }]}>{unit}</Text>}
       </View>
       {withheld ? (
-        <Text style={[styles.tileSecondary, isDark && styles.tileSecondaryDark]}>
-          you are naming this one
-        </Text>
+        <Text style={[styles.tileSecondary, { color: color.textFaint }]}>you are naming this one</Text>
       ) : (
         secondary !== undefined &&
         secondary !== '' && (
-          <Text style={[styles.tileSecondary, isDark && styles.tileSecondaryDark]}>{secondary}</Text>
+          <Text style={[styles.tileSecondary, { color: color.textFaint }]}>{secondary}</Text>
         )
       )}
       {accent && <View style={[styles.accentBar, { backgroundColor: accent }]} />}
@@ -122,26 +124,21 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: SPACE.md,
   },
   tile: {
     width: '48%' as unknown as number,
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 12,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACE.lg,
     position: 'relative',
     overflow: 'hidden',
   },
   tileWide: { width: '100%' as unknown as number },
-  tileDark: { backgroundColor: '#1e293b' },
-  tileLabel: { fontSize: 12, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  tileLabelDark: { color: '#94a3b8' },
-  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  tileValue: { fontSize: 22, fontWeight: '700', color: '#0f172a' },
-  tileUnit: { fontSize: 13, color: '#94a3b8' },
-  tileUnitDark: { color: '#64748b' },
-  tileSecondary: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
-  tileSecondaryDark: { color: '#64748b' },
-  textLight: { color: '#e2e8f0' },
+  tileLabel: { fontSize: FONT.micro, marginBottom: SPACE.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
+  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: SPACE.xs },
+  tileValue: { fontSize: FONT.xl, fontWeight: '700' },
+  tileUnit: { fontSize: FONT.xs },
+  tileSecondary: { fontSize: FONT.micro, marginTop: SPACE.xs },
   accentBar: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3 },
 });

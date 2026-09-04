@@ -10,8 +10,9 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FONT, LINE, RADIUS, SPACE, TAP, useAppTheme, withAlpha } from './theme';
 import { useChat } from '../shared/chat/useChat';
 import { useModuleProgress } from '../home/useModuleProgress';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -29,7 +30,8 @@ import { useAuth } from '../auth/AuthContext';
  * what they are actually getting wrong.
  */
 export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: string }) {
-  const isDark = useColorScheme() === 'dark';
+  const { color } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const { weakSpots } = useModuleProgress();
@@ -49,7 +51,12 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
     <>
       <Pressable
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.launcher, { borderColor: accent }, pressed && styles.pressed]}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.launcher,
+          { borderColor: accent, backgroundColor: withAlpha(accent, 0.1) },
+          pressed && styles.pressed,
+        ]}
       >
         <Text style={[styles.launcherText, { color: accent }]}>Ask the tutor</Text>
       </Pressable>
@@ -57,17 +64,23 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[styles.sheet, isDark && styles.sheetDark]}
+          style={[styles.sheet, { backgroundColor: color.bg }]}
         >
-          <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, isDark && styles.textLight]}>Tutor</Text>
+          {/* The sheet is presented full-screen, so it owns its own top inset — without this the
+              title sat under the notch on a device with one. It was a hardcoded 60pt before. */}
+          <View style={[styles.sheetHeader, { paddingTop: insets.top + SPACE.md }]}>
+            <Text style={[styles.sheetTitle, { color: color.text }]}>Tutor</Text>
             <View style={styles.headerActions}>
               {messages.length > 0 && (
-                <Pressable onPress={clear} hitSlop={8}>
+                <Pressable onPress={clear} accessibilityRole="button" style={styles.headerButton}>
                   <Text style={[styles.headerAction, { color: accent }]}>Clear</Text>
                 </Pressable>
               )}
-              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+              <Pressable
+                onPress={() => setOpen(false)}
+                accessibilityRole="button"
+                style={styles.headerButton}
+              >
                 <Text style={[styles.headerAction, { color: accent }]}>Done</Text>
               </Pressable>
             </View>
@@ -75,7 +88,7 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
 
           {!usable ? (
             <View style={styles.empty}>
-              <Text style={[styles.emptyText, isDark && styles.bodyDark]}>
+              <Text style={[styles.emptyText, { color: color.textDim }]}>
                 {isSupabaseConfigured
                   ? 'Sign in to ask the tutor — it answers through an account-gated endpoint.'
                   : 'This build has no backend configured, so the tutor is unavailable.'}
@@ -85,7 +98,7 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
             <>
               <ScrollView contentContainerStyle={styles.transcript}>
                 {messages.length === 0 && (
-                  <Text style={[styles.emptyText, isDark && styles.bodyDark]}>
+                  <Text style={[styles.emptyText, { color: color.textDim }]}>
                     Ask about anything in this module. The tutor reads the same explainers you do.
                   </Text>
                 )}
@@ -94,15 +107,15 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
                     key={i}
                     style={[
                       styles.bubble,
-                      message.role === 'user' ? { backgroundColor: accent } : styles.assistantBubble,
-                      message.role === 'user' ? styles.userBubble : null,
-                      isDark && message.role !== 'user' ? styles.assistantBubbleDark : null,
+                      message.role === 'user'
+                        ? [styles.userBubble, { backgroundColor: accent }]
+                        : [styles.assistantBubble, { backgroundColor: color.panel, borderColor: color.panelBorder }],
                     ]}
                   >
                     <Text
                       style={[
                         styles.bubbleText,
-                        message.role === 'user' ? styles.userText : isDark ? styles.textLight : null,
+                        { color: message.role === 'user' ? color.onSolid : color.text },
                       ]}
                     >
                       {message.content}
@@ -110,16 +123,21 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
                   </View>
                 ))}
                 {status === 'thinking' && <ActivityIndicator color={accent} style={styles.thinking} />}
-                {error && <Text style={styles.error}>{error}</Text>}
+                {error && <Text style={[styles.error, { color: color.danger }]}>{error}</Text>}
               </ScrollView>
 
-              <View style={[styles.composer, isDark && styles.composerDark]}>
+              <View
+                style={[
+                  styles.composer,
+                  { borderTopColor: color.panelBorder, paddingBottom: insets.bottom + SPACE.lg },
+                ]}
+              >
                 <TextInput
                   value={draft}
                   onChangeText={setDraft}
                   placeholder="Ask a question"
-                  placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
-                  style={[styles.input, isDark && styles.inputDark]}
+                  placeholderTextColor={color.textFaint}
+                  style={[styles.input, { borderColor: color.panelBorder, color: color.text }]}
                   multiline
                   onSubmitEditing={submit}
                 />
@@ -133,7 +151,7 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={styles.sendText}>Send</Text>
+                  <Text style={[styles.sendText, { color: color.onSolid }]}>Send</Text>
                 </Pressable>
               </View>
             </>
@@ -145,57 +163,60 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
 }
 
 const styles = StyleSheet.create({
-  launcher: { borderWidth: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  launcherText: { fontSize: 14, fontWeight: '600' },
-  sheet: { flex: 1, backgroundColor: '#f8fafc' },
-  sheetDark: { backgroundColor: '#0f172a' },
+  launcher: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    minHeight: TAP,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  launcherText: { fontSize: FONT.sm, fontWeight: '700' },
+  sheet: { flex: 1 },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 12,
+    paddingHorizontal: SPACE.xl,
+    paddingBottom: SPACE.lg,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
-  headerActions: { flexDirection: 'row', gap: 16 },
-  headerAction: { fontSize: 15, fontWeight: '600' },
-  transcript: { padding: 16, gap: 10 },
-  bubble: { borderRadius: 12, padding: 12, maxWidth: '90%' },
+  sheetTitle: { fontSize: FONT.lg, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', gap: SPACE.md },
+  headerButton: { minHeight: TAP, minWidth: TAP, alignItems: 'center', justifyContent: 'center' },
+  headerAction: { fontSize: FONT.sm, fontWeight: '700' },
+  transcript: { padding: SPACE.xl, gap: SPACE.md },
+  bubble: { borderRadius: RADIUS.md, padding: SPACE.lg, maxWidth: '90%' },
   userBubble: { alignSelf: 'flex-end' },
-  assistantBubble: { backgroundColor: '#ffffff', alignSelf: 'flex-start' },
-  assistantBubbleDark: { backgroundColor: '#1e293b' },
-  bubbleText: { fontSize: 14, lineHeight: 21, color: '#0f172a' },
-  userText: { color: '#ffffff' },
-  thinking: { alignSelf: 'flex-start', marginLeft: 8 },
-  error: { fontSize: 13, color: '#dc2626' },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyText: { fontSize: 14, lineHeight: 21, color: '#64748b', textAlign: 'center' },
-  bodyDark: { color: '#94a3b8' },
-  textLight: { color: '#e2e8f0' },
+  assistantBubble: { alignSelf: 'flex-start', borderWidth: 1 },
+  bubbleText: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose },
+  thinking: { alignSelf: 'flex-start', marginLeft: SPACE.md },
+  error: { fontSize: FONT.xs },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACE.xxxl },
+  emptyText: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose, textAlign: 'center' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8,
-    padding: 12,
+    gap: SPACE.md,
+    paddingHorizontal: SPACE.lg,
+    paddingTop: SPACE.lg,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
   },
-  composerDark: { borderTopColor: '#334155' },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACE.lg,
+    paddingVertical: SPACE.lg,
+    minHeight: TAP,
     maxHeight: 120,
-    fontSize: 15,
-    color: '#0f172a',
+    fontSize: FONT.base,
   },
-  inputDark: { borderColor: '#334155', color: '#e2e8f0' },
-  send: { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  send: {
+    borderRadius: RADIUS.sm,
+    minHeight: TAP,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.xl,
+  },
   sendDisabled: { opacity: 0.4 },
-  sendText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
+  sendText: { fontSize: FONT.sm, fontWeight: '700' },
   pressed: { opacity: 0.6 },
 });

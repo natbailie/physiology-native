@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { InteractionManager, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeLoopConfig } from '../hooks/useNativeEngineLoop';
 import {
   DIRECTION_CHOICES,
@@ -12,6 +12,8 @@ import {
 } from '../shared/assessment/types';
 import { runQuestion } from '../shared/assessment/verifyQuestion';
 import { readPanel, runPatternQuestion } from '../shared/assessment/verifyPattern';
+import { FONT, LINE, RADIUS, SPACE, TAP, useAppTheme, withAlpha } from './theme';
+import { answerFeedback } from './haptics';
 
 /* ------------------------------------------------------------------ */
 /*  Engine-backed truth: settle each question once and keep it         */
@@ -69,34 +71,63 @@ interface PracticeRowProps {
   onRunQuestion?: (questionId: string) => void;
 }
 
-function PracticeRowUncommitted({
-  question,
-  accent,
-  onCommit,
+/**
+ * One answer, before or after the commit.
+ *
+ * The options used to be replaced entirely by the verdict, so the moment a learner answered they
+ * lost sight of what they had picked — and on a wrong answer the explanation then referred to a
+ * choice no longer on screen. They stay now, with the picked one and the right one both marked,
+ * which is the shape every question bank uses and the reason it does.
+ */
+function OptionRow({
+  label,
+  onPress,
+  state,
 }: {
-  question: PredictQuestion<any, any, any>;
-  accent: string;
-  onCommit: (answerId: string) => void;
+  label: string;
+  onPress?: () => void;
+  /** `idle` before the commit; afterwards, what this particular option turned out to be. */
+  state: 'idle' | 'neutral' | 'correct' | 'wrong';
 }) {
+  const { color } = useAppTheme();
+
+  const tint =
+    state === 'correct' ? color.ok : state === 'wrong' ? color.danger : undefined;
+
   return (
-    <View>
-      <Text style={styles.stem}>{question.stem}</Text>
-      <Text style={styles.prompt}>{question.prompt}</Text>
-      {DIRECTION_CHOICES.map((choice) => (
-        <Pressable
-          key={choice.id}
-          onPress={() => onCommit(choice.id)}
-          style={({ pressed }) => [
-            styles.optionButton,
-            pressed && styles.optionPressed,
-            { borderLeftColor: accent },
-          ]}
-        >
-          <Text style={styles.optionText}>{choice.label}</Text>
-        </Pressable>
-      ))}
-    </View>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={
+        state === 'correct' ? `${label} — correct answer` : state === 'wrong' ? `${label} — your answer, wrong` : label
+      }
+      style={({ pressed }) => [
+        styles.optionButton,
+        {
+          backgroundColor: tint ? withAlpha(tint, 0.1) : color.panelRaised,
+          borderColor: tint ?? color.panelBorder,
+        },
+        state === 'neutral' && styles.optionFaded,
+        pressed && styles.optionPressed,
+      ]}
+    >
+      <Text style={[styles.optionText, { color: tint ?? color.text }]}>{label}</Text>
+      {state === 'correct' && <Text style={[styles.optionMark, { color: color.ok }]}>✓</Text>}
+      {state === 'wrong' && <Text style={[styles.optionMark, { color: color.danger }]}>✕</Text>}
+    </Pressable>
   );
+}
+
+/** What one option should look like once an answer is in. */
+function optionState(
+  optionId: string,
+  picked: string | null,
+  answer: string,
+): 'neutral' | 'correct' | 'wrong' {
+  if (optionId === answer) return 'correct';
+  if (optionId === picked) return 'wrong';
+  return 'neutral';
 }
 
 function PracticeRow({
@@ -109,7 +140,7 @@ function PracticeRow({
 }: PracticeRowProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [picked, setPicked] = useState<string | null>(null);
-  const isDark = useColorScheme() === 'dark';
+  const { color } = useAppTheme();
 
   const answer = correctAnswerOf(question);
 
@@ -117,6 +148,8 @@ function PracticeRow({
     if (phase === 'committed') return;
     setPicked(answerId);
     setPhase('committed');
+    // After a few questions the hand knows the result before the eye reads it.
+    answerFeedback(answerId === answer);
     onRecord?.(question.id, answerId === answer);
   };
 
@@ -126,28 +159,44 @@ function PracticeRow({
 
   const runAction = onRunQuestion ? () => onRunQuestion(question.id) : onOpenScenario && openTarget ? () => onOpenScenario(openTarget) : null;
 
+  const committed = phase === 'committed';
+
   return (
-    <View style={[styles.card, isDark && styles.cardDark]}>
-      {phase === 'idle' ? (
-        <PracticeRowUncommitted question={question} accent={accent} onCommit={handleCommit} />
-      ) : (
+    <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
+      <Text style={[styles.stem, { color: color.text }]}>{question.stem}</Text>
+      <Text style={[styles.prompt, { color: color.text }]}>{question.prompt}</Text>
+
+      {DIRECTION_CHOICES.map((choice) => (
+        <OptionRow
+          key={choice.id}
+          label={choice.label}
+          onPress={committed ? undefined : () => handleCommit(choice.id)}
+          state={committed ? optionState(choice.id, picked, answer) : 'idle'}
+        />
+      ))}
+
+      {committed && (
         <View style={styles.reveal}>
-          <Text style={styles.stem}>{question.stem}</Text>
-          <Text style={[styles.verdict, { color: correct ? '#059669' : '#dc2626' }]}>
+          <Text style={[styles.verdict, { color: correct ? color.ok : color.danger }]}>
             {correct ? 'Correct' : 'Not quite'}
           </Text>
           {outcome ? (
-            <Text style={[styles.outcomeLine, isDark && styles.textDim]}>
+            <Text style={[styles.outcomeLine, { color: color.textDim }]}>
               {question.watch}: {format(outcome.before, outcome.decimals)} →{' '}
               {format(outcome.after, outcome.decimals)} ({outcome.observed})
             </Text>
           ) : null}
-          <Text style={styles.explanation}>{question.explanation}</Text>
+          <Text style={[styles.explanation, { color: color.textDim }]}>{question.explanation}</Text>
           <View style={styles.revealActions}>
             {runAction ? (
               <Pressable
                 onPress={runAction}
-                style={({ pressed }) => [styles.simButton, { borderColor: accent }, pressed && styles.optionPressed]}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.simButton,
+                  { borderColor: accent, backgroundColor: withAlpha(accent, 0.1) },
+                  pressed && styles.optionPressed,
+                ]}
               >
                 <Text style={[styles.simButtonText, { color: accent }]}>Run in simulator</Text>
               </Pressable>
@@ -157,9 +206,14 @@ function PracticeRow({
                 setPhase('idle');
                 setPicked(null);
               }}
-              style={({ pressed }) => [styles.retryButton, pressed && styles.optionPressed]}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.retryButton,
+                { backgroundColor: color.panelRaised, borderColor: color.panelBorder },
+                pressed && styles.optionPressed,
+              ]}
             >
-              <Text style={styles.retryButtonText}>Try again</Text>
+              <Text style={[styles.retryButtonText, { color: color.textDim }]}>Try again</Text>
             </Pressable>
           </View>
         </View>
@@ -180,7 +234,7 @@ export function PracticePanel({
   onBlindedChange,
   onRecord,
 }: PracticePanelProps) {
-  const isDark = useColorScheme() === 'dark';
+  const { color } = useAppTheme();
 
   const [committed, setCommitted] = useState<ReadonlySet<string>>(() => new Set());
   const commit = useCallback((questionId: string) => {
@@ -241,8 +295,8 @@ export function PracticePanel({
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Practice</Text>
-      <Text style={[styles.sectionHint, isDark && styles.textDim]}>
+      <Text style={[styles.sectionTitle, { color: color.text }]}>Practice</Text>
+      <Text style={[styles.sectionHint, { color: color.textDim }]}>
         Answer against the model. Become automated.
       </Text>
       {questions.map((q) => {
@@ -294,7 +348,7 @@ interface PatternRowProps {
 function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit, onRecord }: PatternRowProps) {
   const [phase, setPhase] = useState<'idle' | 'committed'>('idle');
   const [picked, setPicked] = useState<string | null>(null);
-  const isDark = useColorScheme() === 'dark';
+  const { color } = useAppTheme();
 
   const styled = question as {
     answer: string;
@@ -309,43 +363,41 @@ function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit,
     if (phase === 'committed') return;
     setPicked(ans);
     setPhase('committed');
+    answerFeedback(ans === styled.answer);
     onCommit(question.id);
     onRecord?.(question.id, ans === styled.answer);
   };
 
   const correct = picked === styled.answer;
-
-  if (phase === 'idle') {
-    return (
-      <View style={[styles.card, isDark && styles.cardDark]}>
-        <Text style={styles.stem}>{question.stem}</Text>
-        {orderedOptions(question.id, styled.options).map((opt) => (
-          <Pressable
-            key={opt}
-            onPress={() => handleCommit(opt)}
-            style={({ pressed }) => [styles.optionButton, pressed && styles.optionPressed]}
-          >
-            <Text style={styles.optionText}>{opt}</Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
+  const committed = phase === 'committed';
 
   return (
-    <View style={[styles.card, isDark && styles.cardDark]}>
-      <Text style={[styles.verdict, { color: correct ? '#059669' : '#dc2626' }]}>
+    <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
+      <Text style={[styles.stem, { color: color.text }]}>{question.stem}</Text>
+
+      {orderedOptions(question.id, styled.options).map((opt) => (
+        <OptionRow
+          key={opt}
+          label={opt}
+          onPress={committed ? undefined : () => handleCommit(opt)}
+          state={committed ? optionState(opt, picked, styled.answer) : 'idle'}
+        />
+      ))}
+
+      {!committed ? null : (
+      <>
+      <Text style={[styles.verdict, { color: correct ? color.ok : color.danger }]}>
         {correct ? 'Correct' : 'Not quite'}
       </Text>
       {panel && styled.panel ? (
-        <View style={styles.panel}>
+        <View style={[styles.panel, { borderColor: color.panelBorder }]}>
           {panel.map((row, i) => {
             const field = styled.panel?.[i];
             const decimals = field?.decimals ?? 2;
             return (
-              <View key={row.label} style={[styles.panelRow, isDark && styles.panelRowDark]}>
-                <Text style={[styles.panelLabel, isDark && styles.textDim]}>{row.label}</Text>
-                <Text style={[styles.panelValue, isDark && styles.textLight]}>
+              <View key={row.label} style={[styles.panelRow, { backgroundColor: color.panelRaised }]}>
+                <Text style={[styles.panelLabel, { color: color.textDim }]}>{row.label}</Text>
+                <Text style={[styles.panelValue, { color: color.text }]}>
                   {row.value.toFixed(decimals)}
                   {field?.unit ? ` ${field.unit}` : ''}
                 </Text>
@@ -354,12 +406,17 @@ function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit,
           })}
         </View>
       ) : null}
-      <Text style={styles.explanation}>{styled.explanation}</Text>
+      <Text style={[styles.explanation, { color: color.textDim }]}>{styled.explanation}</Text>
       <View style={styles.revealActions}>
         {onOpenScenario ? (
           <Pressable
             onPress={() => onOpenScenario(styled.answer)}
-            style={({ pressed }) => [styles.simButton, { borderColor: accent }, pressed && styles.optionPressed]}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.simButton,
+              { borderColor: accent, backgroundColor: withAlpha(accent, 0.1) },
+              pressed && styles.optionPressed,
+            ]}
           >
             <Text style={[styles.simButtonText, { color: accent }]}>Run in simulator</Text>
           </Pressable>
@@ -369,66 +426,80 @@ function PatternPracticeRow({ question, panel, accent, onOpenScenario, onCommit,
             setPhase('idle');
             setPicked(null);
           }}
-          style={({ pressed }) => [styles.retryButton, pressed && styles.optionPressed]}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.retryButton,
+            { backgroundColor: color.panelRaised, borderColor: color.panelBorder },
+            pressed && styles.optionPressed,
+          ]}
         >
-          <Text style={styles.retryButtonText}>Review labs</Text>
+          <Text style={[styles.retryButtonText, { color: color.textDim }]}>Review labs</Text>
         </Pressable>
       </View>
+      </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: 8 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
-  sectionHint: { fontSize: 13, color: '#64748b', marginBottom: 8 },
+  section: { gap: SPACE.lg },
+  sectionTitle: { fontSize: FONT.xl, fontWeight: '700' },
+  sectionHint: { fontSize: FONT.xs, marginBottom: SPACE.xs },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: RADIUS.md,
+    padding: SPACE.xl,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 8,
+    gap: SPACE.md,
   },
-  cardDark: { backgroundColor: '#1e293b', borderColor: '#334155' },
-  stem: { fontSize: 14, lineHeight: 20, color: '#0f172a' },
-  prompt: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginTop: 4 },
+  stem: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose },
+  prompt: { fontSize: FONT.sm, fontWeight: '700' },
+  // Full-width rows at the iOS minimum height. These were 10pt of vertical padding round 14pt
+  // text — about 36pt, and the row grew or shrank with the length of the label.
   optionButton: {
-    backgroundColor: '#f8fafc',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACE.md,
+    minHeight: TAP,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginTop: 6,
+    borderRadius: RADIUS.sm,
+    paddingVertical: SPACE.md,
+    paddingHorizontal: SPACE.lg,
   },
   optionPressed: { opacity: 0.6 },
-  optionText: { fontSize: 14, color: '#0f172a', fontWeight: '500' },
-  verdict: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  outcomeLine: { fontSize: 13, color: '#475569', fontFamily: 'monospace' },
-  textDim: { color: '#94a3b8' },
-  textLight: { color: '#e2e8f0' },
-  explanation: { fontSize: 13, lineHeight: 19, color: '#475569', marginTop: 4 },
-  reveal: { gap: 6 },
-  revealActions: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
+  // The options a learner neither picked nor should have: still legible, visibly not the answer.
+  optionFaded: { opacity: 0.55 },
+  optionText: { fontSize: FONT.sm, fontWeight: '600', flexShrink: 1 },
+  optionMark: { fontSize: FONT.base, fontWeight: '700' },
+  verdict: { fontSize: FONT.base, fontWeight: '700', marginTop: SPACE.xs },
+  outcomeLine: { fontSize: FONT.xs, fontVariant: ['tabular-nums'] },
+  explanation: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose },
+  reveal: { gap: SPACE.sm },
+  revealActions: { flexDirection: 'row', gap: SPACE.md, marginTop: SPACE.md, flexWrap: 'wrap' },
   simButton: {
     borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    borderRadius: RADIUS.sm,
+    minHeight: TAP,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.xl,
   },
-  simButtonText: { fontSize: 14, fontWeight: '600' },
-  retryButton: { backgroundColor: '#f1f5f9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
-  retryButtonText: { fontSize: 14, color: '#334155', fontWeight: '500' },
-  panel: { borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' },
+  simButtonText: { fontSize: FONT.sm, fontWeight: '700' },
+  retryButton: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    minHeight: TAP,
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.xl,
+  },
+  retryButtonText: { fontSize: FONT.sm, fontWeight: '600' },
+  panel: { borderRadius: RADIUS.sm, overflow: 'hidden', borderWidth: 1 },
   panelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f8fafc',
+    paddingVertical: SPACE.md,
+    paddingHorizontal: SPACE.lg,
   },
-  panelRowDark: { backgroundColor: '#0f172a' },
-  panelLabel: { fontSize: 13, color: '#475569' },
-  panelValue: { fontSize: 13, fontWeight: '600', color: '#0f172a', fontFamily: 'monospace' },
+  panelLabel: { fontSize: FONT.xs },
+  panelValue: { fontSize: FONT.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });
