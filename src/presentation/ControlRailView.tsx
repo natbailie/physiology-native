@@ -228,7 +228,9 @@ const styles = StyleSheet.create({
   },
   sliderLabel: { fontSize: FONT.sm, flex: 1 },
   sliderValue: { fontSize: FONT.sm, fontWeight: '600', minWidth: 84, textAlign: 'center' },
-  slider: { height: TAP },
+  // `alignSelf` because the native slider has no intrinsic width: in any container that does
+  // not stretch its children it collapses to the thumb.
+  slider: { height: TAP, alignSelf: 'stretch' },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   // 44x44, which is the iOS minimum. These were 24pt text glyphs with hitSlop 8 — 40pt at best,
   // and invisible as targets until pressed.

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DiagramView } from '../../src/presentation/DiagramView';
-import { ControlRailView } from '../../src/presentation/ControlRailView';
+import { ControlDock } from '../../src/presentation/ControlDock';
 import { ReadoutGridView } from '../../src/presentation/ReadoutGridView';
 import { TrendsView } from '../../src/presentation/TrendsView';
 import { ScenarioBar } from '../../src/presentation/ScenarioBar';
@@ -102,11 +102,13 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
   const { color } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<ModuleTab>('simulate');
+  /** The collapsed dock's measured height, so the scroll below can clear it. */
+  const [dockHeight, setDockHeight] = useState(0);
 
   const [inputs, setInputs] = useState<TInputs>(adapter.defaults);
    
   const loop = useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(inputs, adapter.config as any);
-  const { snapshot, history, baseline, reset, perturb, fastForward } = loop;
+  const { snapshot, history, baseline, reset, perturb, fastForward, transport } = loop;
 
   const handleChange = useMemo(
     () => <K extends keyof TInputs>(key: K, value: TInputs[K]) => {
@@ -193,9 +195,10 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
       <Stack.Screen options={{ title: title }} />
 
       {/* Both of these sit OUTSIDE the ScrollView, which is the point of them. The web is a
-          two-column desktop layout with the control rail beside the readouts; here the rail is
-          under them, so without a pinned copy of the headline numbers a learner dragging a slider
-          cannot see the thing the slider moves. That is the whole proposition of the product. */}
+          two-column desktop layout with the control rail beside the readouts; here the rail is a
+          dock at the bottom of the screen, so without a pinned copy of the headline numbers a
+          learner dragging a slider cannot see the thing the slider moves. That is the whole
+          proposition of the product. */}
       <View style={[styles.tabBar, { backgroundColor: color.panel, borderBottomColor: color.panelBorder }]}>
         <SegmentedControl segments={TABS} value={tab} onChange={setTab} accent={accent} />
       </View>
@@ -203,7 +206,13 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         <ReadoutStrip readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
       )}
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          // Clears the collapsed dock, so the trends chart at the foot of the page stays reachable.
+          { paddingBottom: (tab === 'simulate' ? dockHeight : 0) + insets.bottom + SPACE.xxl },
+        ]}
+      >
         {tab === 'simulate' && (
           <>
             <ScenarioBar
@@ -222,14 +231,6 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
               />
             ))}
             <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
-            {/* Directly under the readouts, and above the trends — the trends chart is tall, and
-                putting it between the numbers and the controls is what buried the rail. */}
-            <ControlRailView
-              controls={presentation.controls}
-              inputs={inputs}
-              onChange={handleChange}
-              accent={accent}
-            />
             {presentation.charts.length > 0 && (
               <>
                 <BaselineBar
@@ -289,6 +290,18 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
           </>
         )}
       </ScrollView>
+
+      {/* Outside the scroll, over it: the transport and the sliders, collapsed by default. */}
+      {tab === 'simulate' && (
+        <ControlDock
+          controls={presentation.controls}
+          inputs={inputs}
+          onChange={handleChange}
+          accent={accent}
+          transport={transport}
+          onHeadLayout={setDockHeight}
+        />
+      )}
     </View>
   );
 }

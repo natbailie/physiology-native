@@ -16,10 +16,32 @@ export interface NativeLoopConfig<TState, TInputs, TDerived, THistoryPoint> {
 
 const MAX_FRAME_SECONDS = 0.05;
 
+/** Speed multipliers applied on top of each module's own `timeScale`. 1 is the module's calibrated
+ * pace; the slow settings exist so fast events can be watched rather than inferred. The same list
+ * the web offers, so a module runs at the same speeds in both apps. */
+export const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4] as const;
+
+/** One press of "Step" advances this much REAL time (then scaled by timeScale and speed). Chosen
+ * to be a visible nudge rather than a single imperceptible frame; matches the web. */
+const STEP_REAL_SECONDS = 0.25;
+
 export interface NativeSimBaseline<THistoryPoint> {
   history: THistoryPoint[] | null;
   capture: () => void;
   clear: () => void;
+}
+
+/** Play/pause/step/speed over simulated time. The same shape as the web's `SimTransport`, minus
+ * the `reset` the web's Reset button calls — this app has no Reset button. */
+export interface NativeSimTransport {
+  playing: boolean;
+  speed: number;
+  play: () => void;
+  pause: () => void;
+  toggle: () => void;
+  /** Advance a fixed slice of time while paused. No-op while playing. */
+  stepOnce: () => void;
+  setSpeed: (multiplier: number) => void;
 }
 
 export interface UseNativeEngineLoopResult<TState, TInputs, TDerived, THistoryPoint> {
@@ -28,8 +50,10 @@ export interface UseNativeEngineLoopResult<TState, TInputs, TDerived, THistoryPo
   reset: (inputsOverride?: TInputs) => void;
   perturb: (fn: (state: TState) => TState) => void;
   fastForward: (seconds: number, inputsOverride?: TInputs) => void;
-  /** The glucose page is playing whenever mounted (native has no simulate-transport UI yet). */
+  /** Whether the learner has left it playing. Not whether it is currently integrating — a
+   * backgrounded app is not, and that is deliberately invisible here. */
   playing: boolean;
+  transport: NativeSimTransport;
   baseline: NativeSimBaseline<THistoryPoint>;
 }
 
@@ -92,11 +116,22 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
   const [history, setHistory] = useState<THistoryPoint[]>([]);
   const [baselineHistory, setBaselineHistory] = useState<THistoryPoint[] | null>(null);
 
-  // The native app has no play/pause SimControls yet, so it plays by default. The ref is what the
-  // interval callbacks read; the state is what renders, and is kept in step with it so a future
-  // transport UI gets a value that actually re-renders.
+  /**
+   * Two independent gates on the tick, because they answer different questions and collapsing
+   * them into one flag is what used to freeze a module permanently: backgrounding cleared the
+   * only flag there was, so `wasPlaying` on the way back read the value background had just
+   * written and the loop never restarted.
+   *
+   * `userPlayingRef` is intent — what the Pause button sets, and what the button renders from.
+   * `foregroundRef` is the OS gate, so a long absence isn't replayed as one enormous jump.
+   */
   const [playing, setPlaying] = useState(true);
-  const playingRef = useRef(true);
+  const userPlayingRef = useRef(true);
+  const foregroundRef = useRef(true);
+
+  // Applied on top of the module's own timeScale.
+  const [speed, setSpeedState] = useState(1);
+  const speedRef = useRef(1);
 
   // Keep inputs/config fresh in refs without tearing down the loop.
   useEffect(() => {
@@ -108,9 +143,20 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
     setSnapshot((prev) => ({ state: prev.state, derived: cfg.computeDerived(prev.state, inputs) }));
   }, [inputs, config]);
 
+  /** Publishes the engine's current state to React outside the publish interval, for the callers
+   * — perturb, step, fastForward — whose whole point is that the change is visible now. */
+  const publish = useCallback(() => {
+    const cfg = configRef.current;
+    setSnapshot({
+      state: stateRef.current,
+      derived: cfg.computeDerived(stateRef.current, inputsRef.current),
+    });
+    setHistory(historyRef.current.toArray());
+  }, []);
+
   const advance = useCallback((realSeconds: number) => {
     const cfg = configRef.current;
-    let remaining = realSeconds * cfg.timeScale;
+    let remaining = realSeconds * cfg.timeScale * speedRef.current;
     let result: { state: TState; derived: TDerived } | null = null;
     while (remaining > 0) {
       const chunk = Math.min(remaining, cfg.maxDtSeconds);
@@ -135,7 +181,7 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
       const now = nowSeconds();
       const realDt = Math.min(now - lastTick, MAX_FRAME_SECONDS);
       lastTick = now;
-      if (playingRef.current) {
+      if (userPlayingRef.current && foregroundRef.current) {
         advance(realDt);
       }
     }, 16); // ~60Hz physics, hex frame boundary
@@ -155,30 +201,19 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pause integration when the app backgrounds so a long absence isn't replayed as one jump.
+  // Pause integration when the app backgrounds so a long absence isn't replayed as one jump. The
+  // learner's own play/pause is untouched by this, which is why it resumes on return.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
-      const wasPlaying = playingRef.current;
-      if (next === 'background') {
-        playingRef.current = false;
-        setPlaying(false);
-      } else if (next === 'active' && wasPlaying) {
-        playingRef.current = true;
-        setPlaying(true);
-      }
+      foregroundRef.current = next === 'active';
     });
     return () => sub.remove();
   }, []);
 
   const perturb = useCallback((fn: (state: TState) => TState) => {
-    const cfg = configRef.current;
     stateRef.current = fn(stateRef.current);
-    setSnapshot({
-      state: stateRef.current,
-      derived: cfg.computeDerived(stateRef.current, inputsRef.current),
-    });
-    setHistory(historyRef.current.toArray());
-  }, []);
+    publish();
+  }, [publish]);
 
   const fastForward = useCallback((seconds: number, inputsOverride?: TInputs) => {
     const cfg = configRef.current;
@@ -207,6 +242,34 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
     setHistory([]);
   }, []);
 
+  const play = useCallback(() => {
+    userPlayingRef.current = true;
+    setPlaying(true);
+  }, []);
+  const pause = useCallback(() => {
+    userPlayingRef.current = false;
+    setPlaying(false);
+  }, []);
+  const toggle = useCallback(() => {
+    const next = !userPlayingRef.current;
+    userPlayingRef.current = next;
+    setPlaying(next);
+  }, []);
+  const stepOnce = useCallback(() => {
+    if (userPlayingRef.current) return;
+    advance(STEP_REAL_SECONDS);
+    publish();
+  }, [advance, publish]);
+  const setSpeed = useCallback((multiplier: number) => {
+    speedRef.current = multiplier;
+    setSpeedState(multiplier);
+  }, []);
+
+  const transport: NativeSimTransport = useMemo(
+    () => ({ playing, speed, play, pause, toggle, stepOnce, setSpeed }),
+    [playing, speed, play, pause, toggle, stepOnce, setSpeed],
+  );
+
   const captureBaseline = useCallback(() => setBaselineHistory(historyRef.current.toArray()), []);
   const clearBaseline = useCallback(() => setBaselineHistory(null), []);
   const baseline: NativeSimBaseline<THistoryPoint> = useMemo(
@@ -214,5 +277,5 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
     [baselineHistory, captureBaseline, clearBaseline],
   );
 
-  return { snapshot, history, reset, perturb, fastForward, playing, baseline };
+  return { snapshot, history, reset, perturb, fastForward, playing, transport, baseline };
 }
