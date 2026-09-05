@@ -1,31 +1,38 @@
 import { Stack } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FALLBACK_PACKAGES, PLAN_FEATURES, PLAN_NAME } from '../src/billing/config';
-import { useEntitlement } from '../src/billing/useEntitlement';
+import { FALLBACK_PACKAGES, PLAN_FEATURES, PLAN_NAME, type PlanPackage } from '../src/billing/config';
+import { confirmSubscription } from '../src/billing/useEntitlement';
 import { redeemLicence } from '../src/billing/licence';
+import {
+  fetchOfferedPackages,
+  isRevenueCatConfigured,
+  type OfferedPackage,
+  purchasePackage,
+  restorePurchases,
+} from '../src/purchases/revenuecat';
+import { invalidateStoreEntitlement, useNativeEntitlement } from '../src/purchases/useNativeEntitlement';
 import { useAuth } from '../src/auth/AuthContext';
 import { isSupabaseConfigured } from '../src/lib/supabase';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../src/presentation/theme';
 
 /**
- * What full access costs, what it includes, and how to redeem an institutional seat.
+ * What full access costs, how to buy it, and how to redeem an institutional seat.
  *
- * Prices come from the file-synced billing config, and entitlement state from the synced
- * useEntitlement, which reads it from Supabase rather than from RevenueCat — which is why both
- * cross over unchanged.
+ * Prices are read from the RevenueCat offering and fall back to the synced billing config when
+ * the SDK is unconfigured, unreachable, or still loading — the same three-state discipline the
+ * web project's PricingPage keeps, and for the same reason: a pricing screen that renders nothing
+ * is worse than one showing last known prices.
  *
- * There is deliberately no Buy button. Apple and Google require in-app purchase for digital
- * goods, so buying here means RevenueCat's NATIVE SDK (react-native-purchases), which is a native
- * module and therefore needs a development build rather than Expo Go. Shipping a button that
- * cannot complete would be worse than saying where to buy. Redemption is unaffected: it is a
- * Supabase rpc, so it works today.
+ * Buying goes through RevenueCat's native SDK, which is what puts the purchase in front of
+ * StoreKit or Play Billing as both stores require for digital goods. Redemption sits beside it
+ * unchanged — it is a Supabase rpc and has always worked here.
  */
 export default function PricingScreen() {
   const { color } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const entitlement = useEntitlement();
+  const entitlement = useNativeEntitlement();
   const { user } = useAuth();
 
   const [code, setCode] = useState('');
@@ -33,6 +40,68 @@ export default function PricingScreen() {
   const [message, setMessage] = useState<string | null>(null);
   // Which of the two the message is, so it can be coloured rather than all rendered as an error.
   const [redeemed, setRedeemed] = useState(false);
+
+  // Keyed by the learner it was fetched for, so both "still loading" and "signed out" are
+  // derived rather than written by an effect that would only cause a second render.
+  const [offer, setOffer] = useState<{ userId: string; packages: OfferedPackage[] | null } | null>(null);
+  const [selectedId, setSelectedId] = useState<PlanPackage['id']>('$rc_annual');
+  const [buying, setBuying] = useState(false);
+  const [buyMessage, setBuyMessage] = useState<string | null>(null);
+
+  const active = entitlement.status === 'active';
+
+  const offered = offer !== null && offer.userId === user?.id ? offer.packages : null;
+  const loadingOffer = isRevenueCatConfigured && Boolean(user) && offer?.userId !== user?.id;
+
+  useEffect(() => {
+    if (!isRevenueCatConfigured || !user) return;
+
+    let cancelled = false;
+    const userId = user.id;
+    void fetchOfferedPackages(userId).then((packages) => {
+      if (!cancelled) setOffer({ userId, packages });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // What to render prices from: the live offering when there is one, last known prices otherwise.
+  const shown: readonly PlanPackage[] = offered ?? FALLBACK_PACKAGES;
+  const canBuy = Boolean(user) && offered !== null && !active;
+
+  const buy = async () => {
+    const chosen = offered?.find((pkg) => pkg.id === selectedId);
+    if (!user || !chosen) return;
+
+    setBuying(true);
+    setBuyMessage(null);
+    const outcome = await purchasePackage(user.id, chosen.rcPackage);
+    setBuying(false);
+
+    if ('cancelled' in outcome) return;
+    if (!outcome.ok) {
+      setBuyMessage(outcome.message);
+      return;
+    }
+
+    // The store has the money and the receipt says so, which is enough to open the app now.
+    invalidateStoreEntitlement();
+    // Reconcile with the webhook in the background so the entitlement outlives this install.
+    void confirmSubscription(user.id);
+  };
+
+  const restore = async () => {
+    if (!user) return;
+    setBuying(true);
+    setBuyMessage(null);
+    const restored = await restorePurchases(user.id);
+    setBuying(false);
+    invalidateStoreEntitlement();
+    setBuyMessage(
+      restored ? null : 'No previous purchase was found on this account.',
+    );
+  };
 
   const redeem = async () => {
     setBusy(true);
@@ -54,7 +123,7 @@ export default function PricingScreen() {
 
       <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
         <Text style={[styles.heading, { color: color.text }]}>{PLAN_NAME}</Text>
-        {entitlement.status === 'active' ? (
+        {active ? (
           <Text style={[styles.active, { color: color.ok }]}>
             Active
             {entitlement.institutionName ? ` — via ${entitlement.institutionName}` : ''}
@@ -71,23 +140,88 @@ export default function PricingScreen() {
         ))}
       </View>
 
-      <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-        <Text style={[styles.heading, { color: color.text }]}>Price</Text>
-        {FALLBACK_PACKAGES.map((pkg) => (
-          <View key={pkg.id} style={styles.priceRow}>
-            <Text style={[styles.body, { color: color.textDim }]}>{pkg.label}</Text>
-            <Text style={[styles.price, { color: color.text }]}>
-              {pkg.price}
-              <Text style={[styles.period, { color: color.textFaint }]}> / {pkg.period}</Text>
-              {pkg.note ? <Text style={[styles.note, { color: color.ok }]}>  {pkg.note}</Text> : null}
+      {!active && (
+        <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
+          <Text style={[styles.heading, { color: color.text }]}>Price</Text>
+
+          {loadingOffer ? (
+            <ActivityIndicator color={color.textDim} style={styles.spinner} />
+          ) : (
+            shown.map((pkg) => {
+              const selected = canBuy && pkg.id === selectedId;
+              return (
+                <Pressable
+                  key={pkg.id}
+                  onPress={() => setSelectedId(pkg.id)}
+                  disabled={!canBuy}
+                  accessibilityRole={canBuy ? 'radio' : 'text'}
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`${pkg.label}, ${pkg.price} per ${pkg.period}`}
+                  style={({ pressed }) => [
+                    styles.priceRow,
+                    canBuy && styles.priceRowSelectable,
+                    canBuy && { borderColor: selected ? color.brand : color.panelBorder },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.body, { color: color.textDim }]}>{pkg.label}</Text>
+                  <Text style={[styles.price, { color: color.text }]}>
+                    {pkg.price}
+                    <Text style={[styles.period, { color: color.textFaint }]}> / {pkg.period}</Text>
+                    {pkg.note ? <Text style={[styles.note, { color: color.ok }]}>  {pkg.note}</Text> : null}
+                  </Text>
+                </Pressable>
+              );
+            })
+          )}
+
+          {buyMessage && (
+            <Text style={[styles.message, { color: color.danger }]}>{buyMessage}</Text>
+          )}
+
+          {canBuy && (
+            <>
+              <Pressable
+                onPress={() => void buy()}
+                disabled={buying}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.primary,
+                  { backgroundColor: color.brand },
+                  buying && styles.primaryDisabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.primaryText, { color: color.onSolid }]}>
+                  {buying ? 'One moment…' : 'Subscribe'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void restore()}
+                disabled={buying}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.restore, pressed && styles.pressed]}
+              >
+                <Text style={[styles.restoreText, { color: color.textDim }]}>Restore purchases</Text>
+              </Pressable>
+            </>
+          )}
+
+          {!user && (
+            <Text style={[styles.footnote, { color: color.textFaint }]}>
+              Sign in to subscribe — a subscription follows the account, not the device, so it works
+              on the web app too.
             </Text>
-          </View>
-        ))}
-        <Text style={[styles.footnote, { color: color.textFaint }]}>
-          Subscriptions are bought on the web app for now. This build does not include the in-app
-          purchase SDK, and buying digital goods in an iOS or Android app has to go through one.
-        </Text>
-      </View>
+          )}
+          {user && !loadingOffer && offered === null && (
+            <Text style={[styles.footnote, { color: color.textFaint }]}>
+              {isRevenueCatConfigured
+                ? 'Prices could not be loaded just now, so the last known ones are shown. Try again in a moment.'
+                : 'Payments are not configured on this build, so the prices above are indicative.'}
+            </Text>
+          )}
+        </View>
+      )}
 
       {isSupabaseConfigured && (
         <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
@@ -143,7 +277,17 @@ const styles = StyleSheet.create({
   body: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose },
   feature: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose },
   active: { fontSize: FONT.sm, fontWeight: '700' },
+  spinner: { alignSelf: 'flex-start' },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  // Only a selectable row gets a box round it; with nothing to buy the prices stay plain text.
+  priceRowSelectable: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACE.lg,
+    paddingVertical: SPACE.md,
+    minHeight: TAP,
+    alignItems: 'center',
+  },
   price: { fontSize: FONT.lg, fontWeight: '700' },
   period: { fontSize: FONT.xs, fontWeight: '400' },
   note: { fontSize: FONT.micro, fontWeight: '700' },
@@ -157,6 +301,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 2,
   },
+  message: { fontSize: FONT.xs, fontWeight: '600' },
   primary: {
     minHeight: TAP,
     borderRadius: RADIUS.sm,
@@ -165,6 +310,7 @@ const styles = StyleSheet.create({
   },
   primaryDisabled: { opacity: 0.5 },
   primaryText: { fontSize: FONT.base, fontWeight: '700' },
-  message: { fontSize: FONT.xs, fontWeight: '600' },
+  restore: { minHeight: TAP, alignItems: 'center', justifyContent: 'center' },
+  restoreText: { fontSize: FONT.xs, fontWeight: '600' },
   pressed: { opacity: 0.6 },
 });

@@ -13,9 +13,23 @@
  * local-only — progress in on-device storage, no accounts, no paywall — exactly as the web app
  * does without a .env.local.
  */
+import { Platform } from 'react-native';
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const revenueCatPublicKey = process.env.EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY;
+/**
+ * RevenueCat's publishable SDK key.
+ *
+ * Two variables rather than one because the App Store and Play Store are separate apps in the
+ * RevenueCat dashboard with separate keys. A Test Store key works on both, so it goes in
+ * EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY and the platform ones stay unset; when real store products
+ * arrive, set the platform keys and they win.
+ */
+const revenueCatApiKey =
+  (Platform.OS === 'ios'
+    ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
+    : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY) ??
+  process.env.EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY;
 
 /**
  * False here, always, and deliberately not `__DEV__`.
@@ -31,4 +45,4 @@ export function isDev(): boolean {
   return false;
 }
 
-export { supabaseUrl, supabaseAnonKey, revenueCatPublicKey };
+export { supabaseUrl, supabaseAnonKey, revenueCatApiKey };

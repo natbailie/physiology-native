@@ -25,6 +25,25 @@ Copy `.env.example` to `.env.local` for accounts, progress sync, the paywall and
 none of it set the app runs local-only — progress on the device, every module unlocked, no tutor —
 which is the same thing `physiology-app` does without a `.env.local`, and is worth keeping working.
 
+### Buying things needs a development build
+
+`react-native-purchases` is a native module, so Expo Go cannot load it — it throws
+`[RevenueCat] Native module (RNPurchases) not found`. Everything else works in Expo Go; the
+Subscribe button does not. For that, build the dev client once:
+
+```
+npx eas-cli build --profile development --platform android   # installable APK
+npx eas-cli build --profile development --platform ios       # simulator build
+```
+
+Then `npx expo start --dev-client` as usual. The JS is still bundled locally, so `EXPO_PUBLIC_*`
+values come from your own `.env.local` and the keys never go near the build servers — build the
+shell once, iterate locally after that.
+
+RevenueCat's **Test Store** works in development builds specifically (not preview or production
+ones), which is what makes a purchase testable with no paid developer account and no store
+products. Put the Test Store key in `EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY`.
+
 ## Layout
 
 - `app/` — Expo Router screens. A root stack holds `(tabs)` plus the two screens that push over
@@ -78,8 +97,32 @@ What does not, and why:
 | `*.module.css`, `<Name>Page.tsx`, `shared/components/`, `presentation/web/` | the web renderer; native has its own |
 | `src/lib/env.ts` | reads `import.meta.env`; hand-written here against `EXPO_PUBLIC_*`. The sync script refuses to copy any source containing `import.meta` |
 | `src/lib/supabaseOptions.ts` | supabase-js needs AsyncStorage and `detectSessionInUrl: false` under React Native |
-| `revenuecat.ts`, `startCheckout.ts` | `@revenuecat/purchases-js` is web-only (see Known gaps) |
+| `revenuecat.ts`, `startCheckout.ts` | `@revenuecat/purchases-js` is the *web* SDK; the native one lives in `src/purchases/` and has no web source |
 | `*.test.ts` | they run in the web repo, against the same sources |
+
+## Purchases
+
+`src/purchases/` is the only part of the paywall that is native-only, and it is deliberately
+outside `src/billing/` — that directory is in `SYNCED_ONLY_DIRS`, so every file in it must be a
+byte-for-byte copy of a web source and `sync:check` reports anything else as an orphan.
+
+- `revenuecat.ts` — the RevenueCat native SDK, and a close sibling of the web project's
+  `src/billing/revenuecat.ts`: same App User ID, same offering, same `full_access` entitlement,
+  different store. The **App User ID is the Supabase user id**, which is what lets the webhook in
+  `physiology-app/supabase/functions/revenuecat-webhook` join `app_user_id` straight onto
+  `profiles.id` with no mapping table — and what makes one subscription follow a learner from the
+  browser to the phone.
+- `useNativeEntitlement.ts` — what the app gates on: what Supabase says, OR what RevenueCat says.
+  The synced `useEntitlement` reads `v_entitlement`, which resolves an institutional seat against a
+  personal subscription in SQL, and stays authoritative. RevenueCat's own `customerInfo` is added
+  on top because the phone has a gap the browser does not: a purchase can complete against a store
+  the webhook has not been pointed at yet, and a buyer must not sit behind a paywall they have just
+  paid to remove. It can only ever *add* access — RevenueCat knows nothing about institutional
+  seats.
+
+The pricing screen reads prices from the live offering and falls back to the synced billing config
+when the SDK is unconfigured, unreachable, or still loading — the same three-state discipline the
+web `PricingPage` keeps.
 
 ## Checks
 
@@ -109,13 +152,8 @@ matching the web.
 
 ## Known gaps
 
-- **No app icon or splash.** `app.json` sets neither, so Expo's defaults are used. Fine for
-  simulator and emulator testing; a store build needs real artwork (1024×1024 icon, an Android
-  adaptive-icon foreground, a splash image) which is a branding decision, not a code one.
-- **No purchases.** Buying digital goods in an iOS or Android app must go through in-app purchase,
-  which means `react-native-purchases` — a native module, so a development build rather than Expo
-  Go. Entitlement is read from Supabase, so a web subscription or an institutional seat already
-  unlocks this app; only buying *here* is missing.
+- **No splash screen.** `app.json` sets an icon and an Android adaptive-icon foreground but no
+  splash; Expo's default is used. A branding decision, not a code one.
 - **No tests.** The engines are covered by the web project's suite, but the hand-written native
   code — the loop hook, the presentation views, the adapters — is covered only by typecheck and
   lint. `jest-expo` is the obvious next step.

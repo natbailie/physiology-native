@@ -8,11 +8,15 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bentara.physiology"
+      "bundleIdentifier": "com.bentara.physiology",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
       },
       "package": "com.bentara.physiology"
     },
@@ -21,6 +25,16 @@
       "expo-asset",
       "expo-font",
       "expo-sqlite"
-    ]
+    ],
+    "icon": "./assets/icon.png",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c5a6daf4-2a51-4cb8-9ed9-98e050c7875e"
+      }
+    }
   }
 }

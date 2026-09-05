@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEntitlement } from '../../../../src/billing/useEntitlement';
+import { useNativeEntitlement } from '../../../../src/purchases/useNativeEntitlement';
 import { MODULES, THEMES } from '../../../../src/home/moduleRegistry';
 import { useModuleProgress } from '../../../../src/home/useModuleProgress';
 import { ModuleCard } from '../../../../src/presentation/cards/ModuleCard';
@@ -19,7 +19,7 @@ export default function ThemeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { color } = useAppTheme();
-  const { isUnlocked } = useEntitlement();
+  const { isUnlocked } = useNativeEntitlement();
   const { progress } = useModuleProgress();
 
   const theme = THEMES.find((t) => t.id === id);

@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/auth/AuthContext';
-import { useEntitlement } from '../../src/billing/useEntitlement';
+import { logOutOfRevenueCat } from '../../src/purchases/revenuecat';
+import { useNativeEntitlement } from '../../src/purchases/useNativeEntitlement';
 import { isSupabaseConfigured } from '../../src/lib/supabase';
 import { useModuleProgress } from '../../src/home/useModuleProgress';
 import { useProgressStore } from '../../src/shared/assessment/useProgressStore';
@@ -113,7 +114,12 @@ export default function AccountScreen() {
           <Body>
             Progress syncs to your account, so it follows you between the web app and this one.
           </Body>
-          <GhostButton label="Sign out" onPress={() => void signOut()} />
+          <GhostButton
+            label="Sign out"
+            // RevenueCat holds the signed-in learner too, and a shared device must not leave the
+            // next one holding the last one's purchases.
+            onPress={() => void logOutOfRevenueCat().then(signOut)}
+          />
         </Card>
       ) : (
         <Card>
@@ -174,7 +180,7 @@ export default function AccountScreen() {
  *  AccessSummary — quietly taking both a school's money and a student's is not a thing this
  *  product should do, and the only way they find out is if we say so. */
 function AccessSummary() {
-  const { status, source, institutionName } = useEntitlement();
+  const { status, source, institutionName } = useNativeEntitlement();
   const { color } = useAppTheme();
 
   if (status === 'loading') return <Body>Checking your access…</Body>;

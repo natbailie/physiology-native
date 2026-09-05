@@ -1,7 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEntitlement } from '../../../src/billing/useEntitlement';
+import { useNativeEntitlement } from '../../../src/purchases/useNativeEntitlement';
 import { MEDICATIONS } from '../../../src/medications/drugs';
 import { DISCIPLINES, MODULES, THEMES, type DisciplineId } from '../../../src/home/moduleRegistry';
 import { useModuleProgress } from '../../../src/home/useModuleProgress';
@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { color } = useAppTheme();
-  const { isUnlocked } = useEntitlement();
+  const { isUnlocked } = useNativeEntitlement();
   const { progress, totals, weakSpots } = useModuleProgress();
   const store = useProgressStore();
 

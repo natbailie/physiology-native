@@ -15,7 +15,7 @@ import { useNativeEngineLoop } from '../../src/hooks/useNativeEngineLoop';
 import { adapterLoaders } from '../../src/engine/adapters.generated';
 import type { AnyModuleAdapter, ModuleAdapter } from '../../src/engine/adapterTypes';
 import { MODULES } from '../../src/home/moduleRegistry';
-import { useEntitlement } from '../../src/billing/useEntitlement';
+import { useNativeEntitlement } from '../../src/purchases/useNativeEntitlement';
 import { ReadoutStrip } from '../../src/presentation/ReadoutStrip';
 import { SegmentedControl } from '../../src/presentation/SegmentedControl';
 import {
@@ -327,7 +327,7 @@ export default function ModuleScreen() {
    * entry, and clearing it in the effect would be a setState during render's commit — which is
    * what `react-hooks/set-state-in-effect` is there to catch.
    */
-  const entitlement = useEntitlement();
+  const entitlement = useNativeEntitlement();
 
   const [loaded, setLoaded] = useState<{ id: string; adapter: AnyModuleAdapter } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -369,8 +369,9 @@ export default function ModuleScreen() {
    * The paywall. Three systems are free and the rest need full access, which is what the web
    * gates on — this app shipped all 45 free, which was simply a leak.
    *
-   * `useEntitlement` reads the state from Supabase, so an institutional seat or a subscription
-   * bought on the web both unlock here with no purchase code in this app at all.
+   * `useNativeEntitlement` answers from Supabase or from RevenueCat, whichever says yes: an
+   * institutional seat, a subscription bought on the web, and one bought here all unlock the
+   * same way.
    */
   if (entitlement.status !== 'loading' && !entitlement.isUnlocked(moduleId)) {
     return (
