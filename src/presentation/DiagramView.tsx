@@ -75,6 +75,12 @@ const SHARED_CLASSES: DiagramClasses = {
   alarm: { fill: 'danger', fontSize: 12 },
   verdict: { fill: 'text', fontSize: 9, fontWeight: '600' },
 
+  /* --- the shared anatomy sheet --- */
+  /* Its animation classes have no equivalent here and need none: a group with no spec is drawn
+   * unstyled, which is a heart that does not beat rather than a heart that does not render. The
+   * leader is the one rule in that sheet that is PAINT, so it is the one that has to be ported. */
+  leader: { stroke: 'text-faint', strokeWidth: 1, fill: 'none' },
+
   /* --- native-only plot chrome, for the charts drawn inside a diagram frame --- */
   verdictMixed: { fill: 'danger', fontSize: 9, fontWeight: '600' },
   plotGrid: { stroke: 'grid-line', strokeWidth: 1 },
@@ -193,14 +199,20 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
 
     case 'path': {
       const ps = clsStyle(node.cls, ctx.theme, ctx.classes, node.styleVars);
+      /* `resolveColor` falls back to black for an unknown token, which is right for a node that
+       * asked for a colour and wrong for one that asked for no stroke at all. Every path used to
+       * carry a `colorToken`, so the difference never showed; the anatomy builders draw fill-only
+       * paths — underlays, shaded chambers — and each of them came out fenced in a 1px black
+       * outline. Resolve only when there IS a token, and let the width follow the colour. */
+      const strokeColor = ps.stroke ?? (node.colorToken ? resolveColor(node.colorToken, ctx.theme) : undefined);
       return (
         <Path
           key={index}
           d={node.d}
-          stroke={ps.stroke ?? resolveColor(node.colorToken, ctx.theme)}
+          stroke={strokeColor}
           fill={pathFill(node.fill, ps, ctx.theme, node.fillGradientId)}
           fillOpacity={ps.fillOpacity ?? node.fillOpacity}
-          strokeWidth={ps.strokeWidth ?? node.strokeWidth ?? 1}
+          strokeWidth={strokeColor ? (ps.strokeWidth ?? node.strokeWidth ?? 1) : undefined}
           strokeOpacity={node.strokeOpacity}
           strokeLinecap={ps.linecap ?? node.strokeLinecap ?? 'round'}
           strokeLinejoin={node.strokeLinejoin ?? 'round'}
