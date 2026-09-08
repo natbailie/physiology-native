@@ -3,10 +3,9 @@ import { Circle, ClipPath, Defs, G, Path, Rect, Text as SvgText } from 'react-na
 import type { OrganName } from './types';
 import { useAppTheme } from './theme';
 import { resolveColor, type ThemeName } from './palette';
-// Byte-identical to what three module presentations already import, so they come from the one
-// file-synced source rather than a second copy that can drift. HEART_PATH and LUNG_PATH below
-// have no upstream equivalent — the web draws those two organs in its own components.
-import { KIDNEY_PATH, LIVER_PATH, PANCREAS_PATH } from './organShapes';
+// Byte-identical to what glucoseRegulation's presentation imports, so they come from the one
+// file-synced source rather than a second copy that can drift.
+import { LIVER_PATH, PANCREAS_PATH } from './organShapes';
 
 /** The active theme, for the organ palettes below. Each organ resolves its own colours rather
  *  than taking them as props, so each reads the scheme for itself. */
@@ -18,10 +17,6 @@ function useThemeName(): ThemeName {
 /*  Organ shape paths (from the web project's shared organShapes.ts)   */
 /* ------------------------------------------------------------------ */
 
-export const HEART_PATH = 'M0,-12 C-16,-28 -40,-12 -40,8 C-40,28 -16,36 0,48 C16,36 40,28 40,8 C40,-12 16,-28 0,-12 Z';
-export const LUNG_PATH =
-  'M0,-38 C18,-40 30,-14 28,14 C26,38 14,50 0,50 C-2,50 -4,49 -6,48 C-16,42 -24,26 -24,4 C-24,-20 -14,-38 0,-38 Z';
-
 /* ------------------------------------------------------------------ */
 /*  Wash levels                                                        */
 /* ------------------------------------------------------------------ */
@@ -31,8 +26,6 @@ export const LUNG_PATH =
  * they are applied as `fillOpacity` so the outline stays solid; a plain `opacity` would fade the
  * stroke with the fill and lose the shape's edge. */
 const WASH_FAINT = 0.14;
-const WASH_SOFT = 0.22;
-const WASH = 0.32;
 const WASH_STRONG = 0.48;
 
 /**
@@ -112,106 +105,6 @@ function Liver({ x, y, params }: OrganProps) {
   );
 }
 
-function Heart({ x, y, params }: OrganProps) {
-  const theme = useThemeName();
-  const heartRate = params.heartRate ?? 70;
-  const svScale = params.strokeVolumeScale ?? 1;
-  const beatScale = 1 + Math.min(Math.max(heartRate - 70, 0), 110) / 140 * 0.04;
-  const heartScale = (svScale * beatScale).toFixed(3);
-  return (
-    <G transform={"translate(" + x + ", " + y + ")"}>
-      <Path
-        d={HEART_PATH}
-        fill={resolveColor('artery', theme)}
-        fillOpacity={WASH_SOFT}
-        stroke={resolveColor('artery', theme)}
-        strokeWidth={2.5}
-        transform={`scale(${heartScale})`}
-      />
-      <SvgText x={-34} y={68} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Heart</SvgText>
-    </G>
-  );
-}
-
-function Kidneys({ x, y, params }: OrganProps) {
-  const theme = useThemeName();
-  const gfrIntensity = params.gfrIntensity ?? 1;
-  const urineSpeed = params.urineSpeed ?? 0.5;
-  const urineOpacity = Math.min(Math.max(urineSpeed, 0), 2) * 0.4;
-  return (
-    <G transform={"translate(" + x + ", " + y + ")"}>
-      <G transform="translate(0, -22)">
-        <Path d={KIDNEY_PATH} fill={resolveColor('kidney', theme)} fillOpacity={gfrIntensity * WASH} stroke={resolveColor('kidney', theme)} strokeWidth={2} />
-      </G>
-      <G transform="translate(0, 24) scale(-1, 1)">
-        <Path d={KIDNEY_PATH} fill={resolveColor('kidney', theme)} fillOpacity={gfrIntensity * WASH} stroke={resolveColor('kidney', theme)} strokeWidth={2} />
-      </G>
-      <Path d="M0,68 L0,96" stroke={resolveColor('urine', theme)} strokeWidth={2.5} strokeDasharray="2,6" strokeLinecap="round" opacity={urineOpacity} />
-      <SvgText x={14} y={90} fontSize={9} fill={organDetail(theme)}>urine</SvgText>
-      <SvgText x={-20} y={112} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Kidneys</SvgText>
-    </G>
-  );
-}
-
-const ALVEOLAR_UNITS = [
-  { x: -6, y: -22 },
-  { x: 6, y: -6 },
-  { x: -8, y: 6 },
-  { x: 4, y: 20 },
-  { x: -4, y: 34 },
-];
-
-function Lungs({ x, y, params }: OrganProps) {
-  const theme = useThemeName();
-  const breathRate = params.breathRate ?? 14;
-  const ventDepth = params.ventDepth ?? 1;
-  const deadUnits = Math.round((params.vqMismatch ?? 0) * ALVEOLAR_UNITS.length);
-  // Rate and depth compose, as they do on the web: the breath-rate term stands in for the
-  // `breathe` keyframe animation, and vent depth scales the lungs about their own centre.
-  const breathScale = 1 + Math.min(Math.max(breathRate - 14, 0), 46) / 46 * 0.03;
-  return (
-    <G transform={"translate(" + x + ", " + y + ")"}>
-      <Path d="M0,-56 L0,-8" stroke={resolveColor('text', theme)} strokeWidth={2} />
-      <G transform={`scale(${(breathScale * ventDepth).toFixed(3)})`}>
-        <Path d={LUNG_PATH} fill={resolveColor('o2')} fillOpacity={WASH_SOFT} stroke={resolveColor('o2')} strokeWidth={2.5} transform="translate(-20, 0)" />
-        <Path d={LUNG_PATH} fill={resolveColor('o2')} fillOpacity={WASH_SOFT} stroke={resolveColor('o2')} strokeWidth={2.5} transform="translate(20, 0) scale(-1, 1)" />
-        {[-20, 20].map((side) =>
-          ALVEOLAR_UNITS.map((unit, index) => (
-            <Circle
-              key={`${side}-${index}`}
-              cx={side + unit.x * (side < 0 ? 1 : -1)}
-              cy={unit.y}
-              r={4}
-              fill={index < deadUnits ? 'none' : resolveColor('o2')}
-              fillOpacity={index < deadUnits ? undefined : 0.55}
-              stroke={index < deadUnits ? resolveColor('co2') : undefined}
-              strokeWidth={index < deadUnits ? 1.6 : undefined}
-              strokeDasharray={index < deadUnits ? '2,2' : undefined}
-            />
-          )),
-        )}
-      </G>
-      <SvgText x={0} y={66} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Lungs</SvgText>
-    </G>
-  );
-}
-
-function RenalCompensation({ x, y, params }: OrganProps) {
-  const theme = useThemeName();
-  const hco3Intensity = params.hco3Intensity ?? 0.5;
-  return (
-    <G transform={"translate(" + x + ", " + y + ")"}>
-      <G transform="translate(0, -22)">
-        <Path d={KIDNEY_PATH} fill={resolveColor('bicarb', theme)} fillOpacity={hco3Intensity * WASH} stroke={resolveColor('bicarb', theme)} strokeWidth={2} />
-      </G>
-      <G transform="translate(0, 24) scale(-1, 1)">
-        <Path d={KIDNEY_PATH} fill={resolveColor('bicarb', theme)} fillOpacity={hco3Intensity * WASH} stroke={resolveColor('bicarb', theme)} strokeWidth={2} />
-      </G>
-      <SvgText x={-20} y={54} fontSize={11} fontWeight="600" textAnchor="middle" fill={organName(theme)}>Kidneys</SvgText>
-    </G>
-  );
-}
-
 /** The organs not yet drawn in native detail render as a labelled rounded square — honest,
  * and they still move with the scene. Replaced one by one as their modules are ported. */
 function Placeholder({ x, y, name }: OrganProps & { name: string }) {
@@ -230,14 +123,6 @@ export function renderOrgan(name: OrganName, x: number, y: number, params: Reado
       return <Pancreas key={index} x={x} y={y} params={params} />;
     case 'liver':
       return <Liver key={index} x={x} y={y} params={params} />;
-    case 'heart':
-      return <Heart key={index} x={x} y={y} params={params} />;
-    case 'kidneys':
-      return <Kidneys key={index} x={x} y={y} params={params} />;
-    case 'lungs':
-      return <Lungs key={index} x={x} y={y} params={params} />;
-    case 'renalCompensation':
-      return <RenalCompensation key={index} x={x} y={y} params={params} />;
     default:
       return <Placeholder key={index} x={x} y={y} params={params} name={name} />;
   }

@@ -5,13 +5,16 @@ import Svg, {
   Defs,
   G,
   Line,
+  LinearGradient,
   Marker,
   Path,
+  RadialGradient,
   Rect,
+  Stop,
   Text as SvgText,
   type FontStyle,
 } from 'react-native-svg';
-import type { FrameNode, SceneNode, StyleVars } from './types';
+import type { FrameNode, GradientStop, SceneNode, StyleVars } from './types';
 import { renderOrgan } from './organs';
 import { resolveColor, type ThemeName } from './palette';
 import {
@@ -133,10 +136,25 @@ function clsStyle(
  * — shockStates rendered both heart chambers as filled squares over the circuit behind them.
  * Paths already went through here; circles and rects now do too.
  */
-function pathFill(fill: string | undefined, style: ClsStyle, theme: ThemeName): string {
+/**
+ * What a shape is painted with.
+ *
+ * A gradient reference wins over a flat token, because a shaded organ names only the gradient;
+ * a class-supplied fill is the last resort, for the nodes that still take their paint from a
+ * module's ported stylesheet rather than carrying it themselves.
+ */
+function pathFill(fill: string | undefined, style: ClsStyle, theme: ThemeName, gradientId?: string): string {
+  if (gradientId) return `url(#${gradientId})`;
   if (fill === 'none') return 'none';
   if (fill) return resolveColor(fill, theme);
   return style.fill ?? 'none';
+}
+
+/** Gradient stops, resolved to this theme's hex the same way every other colour is. */
+function renderStops(stops: readonly GradientStop[], theme: ThemeName) {
+  return stops.map((stop, i) => (
+    <Stop key={i} offset={stop.offset} stopColor={resolveColor(stop.colorToken, theme)} stopOpacity={stop.opacity ?? 1} />
+  ));
 }
 
 /* ------------------------------------------------------------------ */
@@ -180,13 +198,14 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           key={index}
           d={node.d}
           stroke={ps.stroke ?? resolveColor(node.colorToken, ctx.theme)}
-          fill={pathFill(node.fill, ps, ctx.theme)}
-          fillOpacity={ps.fillOpacity}
+          fill={pathFill(node.fill, ps, ctx.theme, node.fillGradientId)}
+          fillOpacity={ps.fillOpacity ?? node.fillOpacity}
           strokeWidth={ps.strokeWidth ?? node.strokeWidth ?? 1}
-          strokeLinecap={ps.linecap ?? 'round'}
-          strokeLinejoin="round"
+          strokeOpacity={node.strokeOpacity}
+          strokeLinecap={ps.linecap ?? node.strokeLinecap ?? 'round'}
+          strokeLinejoin={node.strokeLinejoin ?? 'round'}
           strokeDasharray={ps.dash}
-          opacity={ps.opacity}
+          opacity={ps.opacity ?? node.opacity}
           markerEnd={node.markerEnd ? `url(#${node.markerEnd})` : undefined}
           clipPath={node.clipPathId ? `url(#${node.clipPathId})` : undefined}
         />
@@ -201,12 +220,12 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           cx={node.cx}
           cy={node.cy}
           r={node.r}
-          fill={pathFill(node.fill, cs, ctx.theme)}
-          fillOpacity={cs.fillOpacity}
+          fill={pathFill(node.fill, cs, ctx.theme, node.fillGradientId)}
+          fillOpacity={cs.fillOpacity ?? node.fillOpacity}
           stroke={cs.stroke}
           strokeWidth={cs.strokeWidth}
           strokeDasharray={cs.dash}
-          opacity={cs.opacity}
+          opacity={cs.opacity ?? node.opacity}
         />
       );
     }
@@ -220,12 +239,12 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           y={node.y}
           width={node.width}
           height={node.height}
-          fill={pathFill(node.fill, rs, ctx.theme)}
-          fillOpacity={rs.fillOpacity}
+          fill={pathFill(node.fill, rs, ctx.theme, node.fillGradientId)}
+          fillOpacity={rs.fillOpacity ?? node.fillOpacity}
           stroke={rs.stroke}
           strokeWidth={rs.strokeWidth}
           strokeDasharray={rs.dash}
-          opacity={rs.opacity}
+          opacity={rs.opacity ?? node.opacity}
         />
       );
     }
@@ -379,6 +398,40 @@ export function DiagramView({ frame, blinded = false, classes = {} }: DiagramVie
                     <Path key={j} d={path.d} />
                   ))}
                 </ClipPath>
+              );
+            }
+            /* Gradients. `userSpaceOnUse` is what lets an organ drawn as several shapes be lit
+             * by ONE source rather than one per shape; without it a heart's four chambers read
+             * as a patchwork. react-native-svg takes the same attribute as the web. */
+            if (def.type === 'linearGradient') {
+              return (
+                <LinearGradient
+                  key={i}
+                  id={def.id}
+                  gradientUnits={def.units}
+                  x1={def.x1}
+                  y1={def.y1}
+                  x2={def.x2}
+                  y2={def.y2}
+                >
+                  {renderStops(def.stops, theme)}
+                </LinearGradient>
+              );
+            }
+            if (def.type === 'radialGradient') {
+              return (
+                <RadialGradient
+                  key={i}
+                  id={def.id}
+                  gradientUnits={def.units}
+                  cx={def.cx}
+                  cy={def.cy}
+                  r={def.r}
+                  fx={def.fx}
+                  fy={def.fy}
+                >
+                  {renderStops(def.stops, theme)}
+                </RadialGradient>
               );
             }
             return null;
