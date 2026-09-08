@@ -75,6 +75,7 @@ const NATIVE_ONLY = new Set([
 /** Native modules the web aliases resolve to, as paths relative to NATIVE_ROOT. */
 const ANCHORS = {
   '@/shared/lib/math': 'src/engine/math',
+  '@/shared/lib/wrapSvgText': 'src/shared/lib/wrapSvgText',
   '@/shared/presentation/types': 'src/presentation/presentationTypes',
   '@/shared/diagram/organShapes': 'src/presentation/organShapes',
   '@/shared/assessment/types': 'src/shared/assessment/types',
@@ -155,6 +156,7 @@ function transform(source, nativePath) {
 function buildManifest() {
   const     entries = [
     { web: 'src/shared/lib/math.ts', native: 'src/engine/math.ts' },
+    { web: 'src/shared/lib/wrapSvgText.ts', native: 'src/shared/lib/wrapSvgText.ts' },
     { web: 'src/shared/presentation/types.ts', native: 'src/presentation/presentationTypes.ts' },
     { web: 'src/shared/diagram/organShapes.ts', native: 'src/presentation/organShapes.ts' },
     { web: 'src/shared/assessment/types.ts', native: 'src/shared/assessment/types.ts' },
