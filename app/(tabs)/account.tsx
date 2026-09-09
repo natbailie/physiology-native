@@ -1,15 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/auth/AuthContext';
 import { logOutOfRevenueCat } from '../../src/purchases/revenuecat';
@@ -17,6 +8,7 @@ import { useNativeEntitlement } from '../../src/purchases/useNativeEntitlement';
 import { isSupabaseConfigured } from '../../src/lib/supabase';
 import { useModuleProgress } from '../../src/home/useModuleProgress';
 import { useProgressStore } from '../../src/shared/assessment/useProgressStore';
+import { KeyboardAwareScroll } from '../../src/presentation/KeyboardAwareScroll';
 import { ThemeToggle } from '../../src/presentation/ThemeToggle';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../../src/presentation/theme';
 
@@ -68,12 +60,14 @@ export default function AccountScreen() {
   };
 
   const disabled = busy || email === '' || password === '';
+  const passwordRef = useRef<TextInput>(null);
 
   return (
-    <ScrollView
+    /* The sign-in card is the last on the tab, under a header AND over the tab bar, so both
+       chrome heights matter. KeyboardAwareScroll lets UIKit work them out. */
+    <KeyboardAwareScroll
       style={{ backgroundColor: color.bg }}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}
-      keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: 'Account' }} />
 
@@ -137,9 +131,14 @@ export default function AccountScreen() {
             autoComplete="email"
             keyboardType="email-address"
             textContentType="emailAddress"
+            // Return moves to the password rather than dismissing the keyboard, which is what a
+            // two-field form does everywhere else on the platform.
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
             style={[styles.input, { borderColor: color.panelBorder, color: color.text }]}
           />
           <TextInput
+            ref={passwordRef}
             value={password}
             onChangeText={setPassword}
             placeholder="Password"
@@ -147,6 +146,7 @@ export default function AccountScreen() {
             autoCapitalize="none"
             secureTextEntry
             textContentType={mode === 'signIn' ? 'password' : 'newPassword'}
+            returnKeyType="go"
             onSubmitEditing={() => !disabled && void submit()}
             style={[styles.input, { borderColor: color.panelBorder, color: color.text }]}
           />
@@ -172,7 +172,7 @@ export default function AccountScreen() {
           />
         </Card>
       )}
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 

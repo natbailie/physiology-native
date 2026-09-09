@@ -1,9 +1,10 @@
 import { Link, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FORMULAS, type FormulaDefinition } from '../../src/reference/formulas';
 import { MODULES } from '../../src/home/moduleRegistry';
+import { KeyboardAwareScroll } from '../../src/presentation/KeyboardAwareScroll';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../../src/presentation/theme';
 
 /**
@@ -87,11 +88,12 @@ export default function ReferenceScreen() {
   const domains = useMemo(() => [...new Set(FORMULAS.map((f) => f.domain))], []);
 
   return (
-    <ScrollView
+    /* Dozens of numeric fields down a long scroll, and a `decimal-pad` has no return key: before
+       this, the only way off a field was to drag, and the RESULT row sits below the inputs, so
+       the answer you were typing towards was hidden too. */
+    <KeyboardAwareScroll
       style={[styles.container, { backgroundColor: color.bg }]}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
     >
       <Stack.Screen options={{ title: 'Formula Reference' }} />
       {domains.map((domain) => (
@@ -102,7 +104,7 @@ export default function ReferenceScreen() {
           ))}
         </View>
       ))}
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 

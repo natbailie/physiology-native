@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FALLBACK_PACKAGES, PLAN_FEATURES, PLAN_NAME, type PlanPackage } from '../src/billing/config';
 import { confirmSubscription } from '../src/billing/useEntitlement';
@@ -15,6 +15,7 @@ import {
 import { invalidateStoreEntitlement, useNativeEntitlement } from '../src/purchases/useNativeEntitlement';
 import { useAuth } from '../src/auth/AuthContext';
 import { isSupabaseConfigured } from '../src/lib/supabase';
+import { KeyboardAwareScroll } from '../src/presentation/KeyboardAwareScroll';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../src/presentation/theme';
 
 /**
@@ -114,10 +115,12 @@ export default function PricingScreen() {
   };
 
   return (
-    <ScrollView
+    /* The licence code field is the LAST card on this screen, so the keyboard covered it
+       outright — the one place in the app where a learner has to read characters back as they
+       type them. See KeyboardAwareScroll. */
+    <KeyboardAwareScroll
       style={[styles.container, { backgroundColor: color.bg }]}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}
-      keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: 'Full access' }} />
 
@@ -265,7 +268,7 @@ export default function PricingScreen() {
           </Pressable>
         </View>
       )}
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 

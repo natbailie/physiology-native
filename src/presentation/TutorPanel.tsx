@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -33,7 +34,26 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
   const { color } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+  /* Whether the keyboard is covering the bottom of the sheet, so the composer can drop the
+   * home-indicator inset it no longer needs. `KeyboardAvoidingView` moves the composer but does
+   * not say why, so the flag is read from the events directly. */
+  const [keyboardUp, setKeyboardUp] = useState(false);
   const [draft, setDraft] = useState('');
+
+  useEffect(() => {
+    // `Will` rather than `Did` so the padding changes in the same frame the keyboard slides in;
+    // Android only emits the `Did` pair, and falls back to them.
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () =>
+      setKeyboardUp(true),
+    );
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () =>
+      setKeyboardUp(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const { weakSpots } = useModuleProgress();
   const { user } = useAuth();
   const { messages, status, error, send, clear } = useChat({ moduleId, weakSpots });
@@ -96,7 +116,9 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
             </View>
           ) : (
             <>
-              <ScrollView contentContainerStyle={styles.transcript}>
+              {/* Without this the first tap on Send only dismisses the keyboard, because the
+                  transcript swallows it to do so. */}
+              <ScrollView contentContainerStyle={styles.transcript} keyboardShouldPersistTaps="handled">
                 {messages.length === 0 && (
                   <Text style={[styles.emptyText, { color: color.textDim }]}>
                     Ask about anything in this module. The tutor reads the same explainers you do.
@@ -129,7 +151,13 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
               <View
                 style={[
                   styles.composer,
-                  { borderTopColor: color.panelBorder, paddingBottom: insets.bottom + SPACE.lg },
+                  {
+                    borderTopColor: color.panelBorder,
+                    /* The home-indicator inset only exists while the composer is at the bottom of
+                       the screen. With the keyboard up the keyboard is there instead, and keeping
+                       it added a finger's width of dead grey above the keys. */
+                    paddingBottom: keyboardUp ? SPACE.lg : insets.bottom + SPACE.lg,
+                  },
                 ]}
               >
                 <TextInput
