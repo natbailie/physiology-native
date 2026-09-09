@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth/AuthContext';
+import { TermSheetProvider } from '../src/presentation/TermSheet';
 import { useAppTheme } from '../src/presentation/theme';
 
 /**
@@ -48,7 +49,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        {/* Above the navigator so the definition sheet is a layer over whatever screen asked for
+            it, and so one Modal serves every readout in the app rather than one per tile. */}
+        <TermSheetProvider>
+          <RootNavigator />
+        </TermSheetProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

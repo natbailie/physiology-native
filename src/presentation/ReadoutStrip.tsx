@@ -12,9 +12,10 @@
  * lists its readouts in the order they matter, so the first three are the three a module would
  * choose. `wide` marks a module's headline readout, and those sort first when any exist.
  */
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ReadoutSpec } from './types';
 import { lookupColor } from './palette';
+import { useTermSheet } from './TermSheet';
 import { FONT, SPACE, useAppTheme } from './theme';
 
 /** Three fits a 390pt screen at a readable size. A fourth column starts truncating labels. */
@@ -23,15 +24,19 @@ const SLOTS = 3;
 interface ReadoutStripProps<State, Derived, Inputs> {
   readouts: readonly ReadoutSpec<State, Derived, Inputs>[];
   ctx?: { state: State; derived: Derived; inputs: Inputs };
+  /** The module these readouts belong to, for the module-scoped half of the glossary. */
+  moduleId?: string;
   blinded?: boolean;
 }
 
 export function ReadoutStrip<State, Derived, Inputs>({
   readouts,
   ctx,
+  moduleId,
   blinded = false,
 }: ReadoutStripProps<State, Derived, Inputs>) {
   const { scheme, color } = useAppTheme();
+  const terms = useTermSheet();
 
   // `wide` is how a presentation marks its headline readout, so those lead. Stable within each
   // group, which keeps the module's own ordering intact behind the promotion.
@@ -46,8 +51,19 @@ export function ReadoutStrip<State, Derived, Inputs>({
       {chosen.map((spec) => {
         const withheld = blinded && spec.revealsPattern === true;
         const accent = lookupColor(spec.colorToken, scheme);
+        const explainable = terms.has(spec.label, moduleId);
         return (
-          <View key={spec.label} style={styles.cell}>
+          <Pressable
+            key={spec.label}
+            style={styles.cell}
+            onPress={explainable ? () => terms.open(spec.label, moduleId) : undefined}
+            disabled={!explainable}
+            accessibilityRole={explainable ? 'button' : undefined}
+            accessibilityHint={explainable ? `Explains what ${spec.label} measures` : undefined}
+          >
+            {/* No hint glyph here, unlike the grid below. Three cells share a 390pt width and the
+                glyph cost enough of it to truncate "Cardiac output"; the same tiles carry the
+                affordance in the grid, so the strip can stay tappable and stay legible. */}
             <Text numberOfLines={1} style={[styles.label, { color: color.textFaint }]}>
               {spec.label}
             </Text>
@@ -59,7 +75,7 @@ export function ReadoutStrip<State, Derived, Inputs>({
                 <Text style={[styles.unit, { color: color.textFaint }]}>{spec.unit}</Text>
               )}
             </View>
-          </View>
+          </Pressable>
         );
       })}
     </View>

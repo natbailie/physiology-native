@@ -203,7 +203,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         <SegmentedControl segments={TABS} value={tab} onChange={setTab} accent={accent} />
       </View>
       {tab === 'simulate' && (
-        <ReadoutStrip readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
+        <ReadoutStrip readouts={presentation.readouts} ctx={showCtx} moduleId={moduleId} blinded={blinded} />
       )}
 
       <ScrollView
@@ -230,7 +230,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
                 classes={adapter.diagramClasses}
               />
             ))}
-            <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} blinded={blinded} />
+            <ReadoutGridView readouts={presentation.readouts} ctx={showCtx} moduleId={moduleId} blinded={blinded} />
             {presentation.charts.length > 0 && (
               <>
                 <BaselineBar
@@ -285,6 +285,9 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
                 setTab('simulate');
               }}
               presetLabels={adapter.labels}
+              // Same rule the web's preset bar follows: a demo button must not load a scenario
+              // while a pattern question is open, because it would change the thing being named.
+              scenariosLocked={blinded}
             />
             <TutorPanel moduleId={moduleId} accent={accent} />
           </>
