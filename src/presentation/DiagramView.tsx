@@ -15,7 +15,6 @@ import Svg, {
   type FontStyle,
 } from 'react-native-svg';
 import type { FrameNode, GradientStop, SceneNode, StyleVars } from './types';
-import { renderOrgan } from './organs';
 import { resolveColor, type ThemeName } from './palette';
 import {
   resolveClsValue,
@@ -203,8 +202,11 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
        * asked for a colour and wrong for one that asked for no stroke at all. Every path used to
        * carry a `colorToken`, so the difference never showed; the anatomy builders draw fill-only
        * paths — underlays, shaded chambers — and each of them came out fenced in a 1px black
-       * outline. Resolve only when there IS a token, and let the width follow the colour. */
-      const strokeColor = ps.stroke ?? (node.colorToken ? resolveColor(node.colorToken, ctx.theme) : undefined);
+       * outline. Resolve only when there IS a token, and let the width follow the colour.
+       *
+       * The token wins over the class, as it does for text above and for the same reason: the
+       * web writes it as an inline `stroke` attribute, which outranks the stylesheet. */
+      const strokeColor = (node.colorToken ? resolveColor(node.colorToken, ctx.theme) : undefined) ?? ps.stroke;
       return (
         <Path
           key={index}
@@ -234,8 +236,10 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           r={node.r}
           fill={pathFill(node.fill, cs, ctx.theme, node.fillGradientId)}
           fillOpacity={cs.fillOpacity ?? node.fillOpacity}
-          stroke={cs.stroke}
-          strokeWidth={cs.strokeWidth}
+          // The node's own outline first, the class's second — the same precedence as everywhere
+          // else here, and what lets a schema-only module draw a washed shape with an edge.
+          stroke={node.stroke ? resolveColor(node.stroke, ctx.theme) : cs.stroke}
+          strokeWidth={node.strokeWidth ?? cs.strokeWidth}
           strokeDasharray={cs.dash}
           opacity={cs.opacity ?? node.opacity}
         />
@@ -253,8 +257,8 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           height={node.height}
           fill={pathFill(node.fill, rs, ctx.theme, node.fillGradientId)}
           fillOpacity={rs.fillOpacity ?? node.fillOpacity}
-          stroke={rs.stroke}
-          strokeWidth={rs.strokeWidth}
+          stroke={node.stroke ? resolveColor(node.stroke, ctx.theme) : rs.stroke}
+          strokeWidth={node.strokeWidth ?? rs.strokeWidth}
           strokeDasharray={rs.dash}
           opacity={rs.opacity ?? node.opacity}
         />
@@ -272,7 +276,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           y1={node.y1}
           x2={node.x2}
           y2={node.y2}
-          stroke={ls.stroke ?? resolveColor(node.colorToken, ctx.theme)}
+          stroke={node.colorToken ? resolveColor(node.colorToken, ctx.theme) : ls.stroke}
           strokeWidth={ls.strokeWidth ?? 1}
           strokeDasharray={ls.dash}
           strokeLinecap={ls.linecap}
@@ -290,29 +294,51 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
        */
       if (ctx.blinded && node.cls === 'verdict') return null;
       const ts = clsStyle(node.cls, ctx.theme, ctx.classes, node.styleVars);
-      // Text with neither a class nor a colour token is body text, not black: the label
-      // "Right heart" carries no colour of its own and resolved to #000000, invisible against
-      // the dark theme's background.
+      // The NODE's colour wins over the class's, which is the precedence the web has: it renders
+      // `<text className={cls} fill={colorToken}>`, and an SVG presentation attribute set inline
+      // beats the same property coming from a stylesheet. Native had it the other way round, so
+      // the 64 labels that carry both — every coloured reading on the pituitary axes, the ECG
+      // lead names, micturition's phase text — drew in the class's grey on the phone and in
+      // their signal colour on the web.
+      //
+      // Text with neither a class nor a token is body text, not black: the label "Right heart"
+      // carries no colour of its own and resolved to #000000, invisible on the dark theme.
       const textFill =
+        (node.colorToken ? resolveColor(node.colorToken, ctx.theme) : undefined) ??
         ts.fill ??
-        (node.colorToken ? resolveColor(node.colorToken, ctx.theme) : resolveColor('text', ctx.theme));
-      return (
-        <SvgText
-          key={index}
-          x={node.x}
-          y={node.y}
-          fill={textFill}
-          fontSize={ts.fontSize ?? 12}
-          fontWeight={ts.fontWeight}
-          fontStyle={ts.fontStyle}
-          textAnchor={
-            node.anchor === 'middle' ? 'middle' :
-            node.anchor === 'end' ? 'end' : ts.anchor ?? 'start'
-          }
-          opacity={ts.opacity ?? node.opacity}
-        >
+        resolveColor('text', ctx.theme);
+      const anchor =
+        node.anchor === 'middle' ? 'middle' : node.anchor === 'end' ? 'end' : (ts.anchor ?? 'start');
+      const common = {
+        x: node.x,
+        y: node.y,
+        fontSize: ts.fontSize ?? 12,
+        fontWeight: ts.fontWeight,
+        fontStyle: ts.fontStyle,
+        textAnchor: anchor,
+        opacity: ts.opacity ?? node.opacity,
+      } as const;
+
+      const label = (
+        <SvgText key={index} {...common} fill={textFill}>
           {node.text}
         </SvgText>
+      );
+      if (!node.halo) return label;
+
+      /* The halo: the same text stroked in the background colour, painted underneath. Two passes
+       * rather than `paint-order`, which react-native-svg does not implement — and the web draws
+       * it the same way so a label reads identically on both. */
+      const halo = resolveColor(node.halo, ctx.theme);
+      return (
+        <G key={index}>
+          <SvgText {...common} fill={halo} stroke={halo} strokeWidth={node.haloWidth ?? 3} strokeLinejoin="round">
+            {node.text}
+          </SvgText>
+          <SvgText {...common} fill={textFill}>
+            {node.text}
+          </SvgText>
+        </G>
       );
     }
 
@@ -356,8 +382,6 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
         </G>
       );
 
-    case 'organ':
-      return renderOrgan(node.name, node.x, node.y, node.params, index);
   }
 }
 

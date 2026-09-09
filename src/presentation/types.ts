@@ -21,8 +21,6 @@ export type {
   TextNode,
   VesselNode,
   AxisNode,
-  OrganNode,
-  OrganName,
   FrameNode,
   MarkerNode,
   DefNode,
