@@ -1,5 +1,5 @@
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DiagramView } from '../../src/presentation/DiagramView';
@@ -18,6 +18,7 @@ import { MODULES } from '../../src/home/moduleRegistry';
 import { useNativeEntitlement } from '../../src/purchases/useNativeEntitlement';
 import { ReadoutStrip } from '../../src/presentation/ReadoutStrip';
 import { SegmentedControl } from '../../src/presentation/SegmentedControl';
+import { clearLiveState, liveReadings, publishLiveState, type LiveState } from '../../src/shared/chat/liveState';
 import {
   accentFrom,
   FONT,
@@ -180,6 +181,34 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
 
   // Withholds the readouts that would name the answer while a pattern question is unanswered.
   const [blinded, setBlinded] = useState(false);
+
+  // Offer the readouts to the tutor as the screen the learner is looking at.
+  //
+  // Published from the SCREEN rather than from `ReadoutGridView`, which is where the web
+  // publishes: the grid and the strip both live on the Simulate tab and unmount when a learner
+  // switches to Practice or Learn, and the engine keeps running underneath. Asking the tutor
+  // about a question on the Practice tab is exactly when the numbers matter most.
+  const latest = useRef({ readouts: presentation.readouts, showCtx, blinded, moduleId });
+  // No dep array: this runs after every commit, so what the tutor can read is always what the
+  // learner can see, and never a frame that React rendered and threw away.
+  useEffect(() => {
+    latest.current = { readouts: presentation.readouts, showCtx, blinded, moduleId };
+  });
+
+  // One identity for the whole mount, which is what `clearLiveState` checks against on the way
+  // out. It reads the ref rather than closing over the values, so it never goes stale.
+  const liveSource = useCallback(
+    (): LiveState => {
+      const { readouts, showCtx: at, blinded: hidden, moduleId: id } = latest.current;
+      return { moduleId: id, readings: liveReadings(readouts, at, hidden) };
+    },
+    [],
+  );
+
+  useEffect(() => {
+    publishLiveState(liveSource);
+    return () => clearLiveState(liveSource);
+  }, [liveSource]);
 
   // The same store the web uses: on-device until a learner signs in, the server after.
   const store = useProgressStore();

@@ -184,6 +184,7 @@ function buildManifest() {
     { web: 'src/shared/chat/corpus.ts', native: 'src/shared/chat/corpus.ts' },
     { web: 'src/shared/chat/retrieve.ts', native: 'src/shared/chat/retrieve.ts' },
     { web: 'src/shared/chat/corpusAnswer.ts', native: 'src/shared/chat/corpusAnswer.ts' },
+    { web: 'src/shared/chat/liveState.ts', native: 'src/shared/chat/liveState.ts' },
     { web: 'src/shared/chat/systemPrompt.ts', native: 'src/shared/chat/systemPrompt.ts' },
     { web: 'src/shared/chat/useChat.ts', native: 'src/shared/chat/useChat.ts' },
     { web: 'src/shared/glossary/terms.ts', native: 'src/shared/glossary/terms.ts' },
