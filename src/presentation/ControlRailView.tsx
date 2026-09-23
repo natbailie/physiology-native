@@ -52,6 +52,11 @@ function SliderControl({ label, value, min, max, step, unit, format, onChange, a
       ? value.toFixed(step < 0.1 ? 2 : 1)
       : Math.round(value).toString();
 
+  // The text alternative for the value: exactly what a sighted learner reads in the value
+  // badge beside the steppers, so VoiceOver and TalkBack announce meaning rather than a raw
+  // number. Mirrors the web `Slider.tsx` aria-valuetext contract (WCAG 4.1.2).
+  const valueText = `${displayValue}${unit ? ` ${unit}` : ''}`;
+
   return (
     <View style={styles.sliderBlock}>
       <View style={styles.sliderRow}>
@@ -102,6 +107,7 @@ function SliderControl({ label, value, min, max, step, unit, format, onChange, a
         maximumTrackTintColor={color.panelBorder}
         thumbTintColor={accent}
         accessibilityLabel={label}
+        accessibilityValue={{ min, max, now: value, text: valueText }}
         // The track is 4pt tall and the thumb is drawn to it. Giving the control real height
         // makes the whole strip draggable rather than only the thumb itself.
         style={styles.slider}

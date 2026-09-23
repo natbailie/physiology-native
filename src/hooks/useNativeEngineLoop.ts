@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { RingBuffer } from '../shared/lib/ringBuffer';
+import { seededBuffer, settledOpening } from '../shared/engine/settle';
 
 export interface NativeLoopConfig<TState, TInputs, TDerived, THistoryPoint> {
   createInitialState: () => TState;
@@ -57,23 +57,6 @@ export interface UseNativeEngineLoopResult<TState, TInputs, TDerived, THistoryPo
   baseline: NativeSimBaseline<THistoryPoint>;
 }
 
-function settledState<TState, TInputs, TDerived, THistoryPoint>(
-  cfg: NativeLoopConfig<TState, TInputs, TDerived, THistoryPoint>,
-  inputs: TInputs,
-): TState {
-  const fresh = cfg.createInitialState();
-  const seconds = cfg.settleSeconds ?? 0;
-  if (seconds <= 0) return fresh;
-  let state = fresh;
-  let remaining = seconds;
-  while (remaining > 0) {
-    const dt = Math.min(remaining, cfg.maxDtSeconds);
-    remaining -= dt;
-    state = cfg.step(state, inputs, dt).state;
-  }
-  return state;
-}
-
 function sameInputs<TInputs>(a: TInputs, b: TInputs): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
@@ -105,15 +88,17 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
   const inputsRef = useRef(inputs);
   const configRef = useRef(config);
 
-  const [initialState] = useState(() => settledState(config, inputs));
-  const stateRef = useRef(initialState);
-  const historyRef = useRef(new RingBuffer<THistoryPoint>(config.historyCapacity));
+  // Lazy initialiser: settling is the expensive part of opening a module, and a ref's argument
+  // would re-run it on every render of a slider drag.
+  const [opening] = useState(() => settledOpening(config, inputs));
+  const stateRef = useRef(opening.state);
+  const historyRef = useRef(seededBuffer(config.historyCapacity, opening.history));
 
   const [snapshot, setSnapshot] = useState<{ state: TState; derived: TDerived }>(() => ({
-    state: initialState,
-    derived: config.computeDerived(initialState, inputs),
+    state: opening.state,
+    derived: config.computeDerived(opening.state, inputs),
   }));
-  const [history, setHistory] = useState<THistoryPoint[]>([]);
+  const [history, setHistory] = useState<THistoryPoint[]>(opening.history);
   const [baselineHistory, setBaselineHistory] = useState<THistoryPoint[] | null>(null);
 
   /**
@@ -233,13 +218,14 @@ export function useNativeEngineLoop<TState, TInputs, TDerived, THistoryPoint>(
   const reset = useCallback((inputsOverride?: TInputs) => {
     const cfg = configRef.current;
     const activeInputs = inputsOverride ?? inputsRef.current;
-    stateRef.current = settledState(cfg, activeInputs);
-    historyRef.current = new RingBuffer<THistoryPoint>(cfg.historyCapacity);
+    const settled = settledOpening(cfg, activeInputs);
+    stateRef.current = settled.state;
+    historyRef.current = seededBuffer(cfg.historyCapacity, settled.history);
     setSnapshot({
-      state: stateRef.current,
-      derived: cfg.computeDerived(stateRef.current, activeInputs),
+      state: settled.state,
+      derived: cfg.computeDerived(settled.state, activeInputs),
     });
-    setHistory([]);
+    setHistory(settled.history);
   }, []);
 
   const play = useCallback(() => {

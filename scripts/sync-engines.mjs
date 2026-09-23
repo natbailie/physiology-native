@@ -66,6 +66,9 @@ const NATIVE_ONLY = new Set([
   // Beside them in src/engine: the adapter's type, and the generated loader manifest.
   'adapterTypes.ts',
   'adapters.generated.ts',
+  // The module screen's case loader: hand-written here, full beds rather than the home page's
+  // round-board projection. It reads the synced manifest and case files but is itself native.
+  'loadModuleCases.ts',
 ]);
 
 /* ------------------------------------------------------------------ */
@@ -84,9 +87,13 @@ const ANCHORS = {
   // The manifest keeps its own relative `./<module>/content` imports, which resolve because the
   // native engine directories are named for the module id. It lands beside them for that reason.
   '@/modules/manifest.generated': 'src/engine/manifest.generated',
+  '@/shared/cases/types': 'src/shared/cases/types',
+  '@/shared/cases/acuity': 'src/shared/cases/acuity',
+  '@/shared/cases/unclaimed': 'src/shared/cases/unclaimed',
   '@/shared/assessment/weakness': 'src/shared/assessment/weakness',
   '@/shared/assessment/scheduling': 'src/shared/assessment/scheduling',
   '@/shared/assessment/useProgressStore': 'src/shared/assessment/useProgressStore',
+  '@/home/exams': 'src/home/exams',
   '@/home/moduleRegistry': 'src/home/moduleRegistry',
   '@/shared/glossary/terms': 'src/shared/glossary/terms',
   '@/medications/drugs': 'src/medications/drugs',
@@ -95,6 +102,9 @@ const ANCHORS = {
   '@/lib/env': 'src/lib/env',
   '@/auth/AuthContext': 'src/auth/AuthContext',
   '@/shared/hooks/useEngineLoop': 'src/hooks/useNativeEngineLoop',
+  '@/shared/lib/ringBuffer': 'src/shared/lib/ringBuffer',
+  '@/shared/engine/settle': 'src/shared/engine/settle',
+  '@/billing/useEntitlement': 'src/billing/useEntitlement',
   // Every module's content.ts, and the tutor's corpus reader, take only the CONTENT SHAPE from
   // the web's ExplainerPanel — `import type { ExplainerContent }`. The shape lives in its own
   // pure module upstream and the component re-exports it, so the alias the copies carry resolves
@@ -164,13 +174,18 @@ function buildManifest() {
     { web: 'src/shared/assessment/verifyPattern.ts', native: 'src/shared/assessment/verifyPattern.ts' },
     { web: 'src/theme/tokens.generated.ts', native: 'src/presentation/tokens.generated.ts' },
     { web: 'src/shared/lib/ringBuffer.ts', native: 'src/shared/lib/ringBuffer.ts' },
+    { web: 'src/shared/engine/settle.ts', native: 'src/shared/engine/settle.ts' },
     { web: 'src/shared/assessment/scheduling.ts', native: 'src/shared/assessment/scheduling.ts' },
     { web: 'src/shared/assessment/progressStore.ts', native: 'src/shared/assessment/progressStore.ts' },
     { web: 'src/shared/assessment/weakness.ts', native: 'src/shared/assessment/weakness.ts' },
+    { web: 'src/home/exams.ts', native: 'src/home/exams.ts' },
+    { web: 'src/home/examFilter.ts', native: 'src/home/examFilter.ts' },
+    { web: 'src/home/specialtyFilter.ts', native: 'src/home/specialtyFilter.ts' },
     { web: 'src/home/moduleRegistry.ts', native: 'src/home/moduleRegistry.ts' },
     { web: 'src/shared/components/ExplainerPanel/types.ts', native: 'src/shared/explainer/types.ts' },
     { web: 'src/lib/supabase.ts', native: 'src/lib/supabase.ts' },
     { web: 'src/auth/AuthContext.tsx', native: 'src/auth/AuthContext.tsx' },
+    { web: 'src/account/examProfile.ts', native: 'src/account/examProfile.ts' },
     { web: 'src/shared/assessment/supabaseProgressStore.ts', native: 'src/shared/assessment/supabaseProgressStore.ts' },
     { web: 'src/shared/assessment/useProgressStore.ts', native: 'src/shared/assessment/useProgressStore.ts' },
     { web: 'src/shared/assessment/useQuizSession.ts', native: 'src/shared/assessment/useQuizSession.ts' },
@@ -190,6 +205,16 @@ function buildManifest() {
     { web: 'src/shared/glossary/terms.ts', native: 'src/shared/glossary/terms.ts' },
     { web: 'src/medications/drugs.ts', native: 'src/medications/drugs.ts' },
     { web: 'src/reference/formulas.ts', native: 'src/reference/formulas.ts' },
+    // The case data layer. `types.ts` is required — every module's `cases.ts` imports it. The
+    // other two are not needed to make the sync work, and are carried because they are already
+    // platform-neutral: `acuityOf` takes `now` as a parameter rather than reading the clock, and
+    // `moduleCases` imports nothing but the manifest and a type. With them here a native ward
+    // round is a UI job rather than a plumbing job.
+    { web: 'src/shared/cases/types.ts', native: 'src/shared/cases/types.ts' },
+    { web: 'src/shared/cases/acuity.ts', native: 'src/shared/cases/acuity.ts' },
+    { web: 'src/shared/cases/unclaimed.ts', native: 'src/shared/cases/unclaimed.ts' },
+    { web: 'src/home/moduleCases.ts', native: 'src/home/moduleCases.ts' },
+    { web: 'src/home/useRound.ts', native: 'src/home/useRound.ts' },
   ];
 
   for (const module of modulesOf(WEB_ROOT)) {
@@ -207,6 +232,22 @@ function buildManifest() {
         native: `src/engine/${module}/${name}`,
       });
     }
+    // Optional, and only on the handful of modules whose subject is a patient: `cases.ts` is the
+    // beds, `panel.ts` the bedside observations that a module's pattern questions are ALSO marked
+    // against. Its own guarded loop rather than three more names above, because that list assumes
+    // every module has every file — which these two are deliberately not.
+    //
+    // Both matter here even though the ward round is web-only. `questions.ts` on a module with a
+    // shared panel imports `./panel`, and `manifest.generated.ts` gained a `caseModules` map
+    // pointing at `./<module>/cases`; leaving either uncopied is a Metro resolution failure in
+    // src/engine, which the app loads at startup.
+    for (const name of ['panel.ts', 'cases.ts']) {
+      if (!existsSync(join(WEB_ROOT, 'src/modules', module, name))) continue;
+      entries.push({
+        web: `src/modules/${module}/${name}`,
+        native: `src/engine/${module}/${name}`,
+      });
+    }
   }
 
   return entries;
@@ -215,6 +256,7 @@ function buildManifest() {
 /** Directories that hold nothing but synced copies, so anything else in them is an orphan. */
 const SYNCED_ONLY_DIRS = new Set([
   'src/shared/assessment',
+  'src/shared/cases',
   'src/shared/lib',
   'src/shared/explainer',
   'src/home',

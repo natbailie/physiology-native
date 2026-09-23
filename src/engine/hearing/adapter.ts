@@ -7,6 +7,7 @@ import {
   DEFAULT_HEARING_INPUTS,
   HEARING_PRESETS,
   HEARING_PRESET_LABELS,
+  HEARING_PRESET_GLOSS,
   HEARING_PRESET_ORDER,
 } from './presets';
 import { perturbNoiseExposure as perturbNoiseExposure } from './engine';
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<HearingInternalState, HearingInputs, Hearing
   defaults: DEFAULT_HEARING_INPUTS,
   presets: HEARING_PRESETS,
   labels: HEARING_PRESET_LABELS,
+  gloss: HEARING_PRESET_GLOSS,
   order: HEARING_PRESET_ORDER,
   questions: HEARING_QUESTIONS,
   content: hearingContent,

@@ -3,6 +3,9 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNativeEntitlement } from '../../../../src/purchases/useNativeEntitlement';
 import { MODULES, THEMES } from '../../../../src/home/moduleRegistry';
+import { matchesExam, useExamFilter } from '../../../../src/home/examFilter';
+import { examName } from '../../../../src/home/exams';
+import { ExamFilterBar } from '../../../../src/presentation/ExamFilterBar';
 import { useModuleProgress } from '../../../../src/home/useModuleProgress';
 import { ModuleCard } from '../../../../src/presentation/cards/ModuleCard';
 import { FONT, LINE, SPACE, useAppTheme } from '../../../../src/presentation/theme';
@@ -21,6 +24,7 @@ export default function ThemeScreen() {
   const { color } = useAppTheme();
   const { isUnlocked } = useNativeEntitlement();
   const { progress } = useModuleProgress();
+  const examFilter = useExamFilter();
 
   const theme = THEMES.find((t) => t.id === id);
 
@@ -33,7 +37,8 @@ export default function ThemeScreen() {
     );
   }
 
-  const modules = MODULES.filter((module) => module.theme === theme.id);
+  const inTheme = MODULES.filter((module) => module.theme === theme.id);
+  const modules = inTheme.filter((module) => matchesExam(module.exams, examFilter));
 
   return (
     <ScrollView
@@ -43,6 +48,17 @@ export default function ThemeScreen() {
       <Stack.Screen options={{ title: theme.name }} />
 
       <Text style={[styles.blurb, { color: color.textDim }]}>{theme.blurb}</Text>
+
+      <ExamFilterBar />
+
+      {/* A filter can empty a theme — MRCS Part A covers none of the special senses. Saying so,
+          with the way out named, is the difference between a filter and a broken screen. */}
+      {examFilter !== null && modules.length === 0 && (
+        <Text style={[styles.blurb, { color: color.textDim }]}>
+          Nothing here is mapped to {examName(examFilter)}. Tap “All exams” above to see the{' '}
+          {inTheme.length} module{inTheme.length === 1 ? '' : 's'} in {theme.name}.
+        </Text>
+      )}
 
       {modules.map((module) => (
         <ModuleCard

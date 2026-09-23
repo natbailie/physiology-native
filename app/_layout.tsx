@@ -6,8 +6,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth/AuthContext';
+import { useExamAttributes } from '../src/purchases/useExamAttributes';
 import { TermSheetProvider } from '../src/presentation/TermSheet';
-import { useAppTheme } from '../src/presentation/theme';
+import { DURATION, useAppTheme } from '../src/presentation/theme';
 
 /**
  * The root stack. It holds the tab group plus the two screens that push OVER the tabs:
@@ -23,6 +24,9 @@ import { useAppTheme } from '../src/presentation/theme';
  */
 function RootNavigator() {
   const { isDark, color } = useAppTheme();
+  // Inside AuthProvider, mounted for the life of the app: RevenueCat's copy of the learner's
+  // exam follows sign-in and every later change to it.
+  useExamAttributes();
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -32,6 +36,22 @@ function RootNavigator() {
           headerTintColor: color.text,
           headerTitleStyle: { color: color.text },
           contentStyle: { backgroundColor: color.bg },
+          /**
+           * Stated rather than inherited, so both platforms push the same way.
+           *
+           * iOS defaults to a slide and Android to its own platform animation, which meant the
+           * catalogue and the module screen arrived differently depending on the phone — and the
+           * web app cross-fades every page change at 180ms, so neither default matched the house
+           * style. react-native-screens runs these natively, off the JS thread, which matters here
+           * more than anywhere else in the app: opening a module settles its engine synchronously
+           * on mount, and a JS-driven animation would stutter through exactly that.
+           *
+           * Reduce Motion is honoured by the OS for these, not by us — iOS substitutes a
+           * cross-dissolve for a slide system-wide — which is why there is no `useReduceMotion`
+           * here and there is one on every animation we drive ourselves.
+           */
+          animation: 'slide_from_right',
+          animationDuration: DURATION.base,
         }}
       >
         {/* The title is what the back button on a pushed screen reads, so it is set even though

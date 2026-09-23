@@ -8,6 +8,7 @@ import {
   DEFAULT_RENAL_TUBULAR_INPUTS,
   RENAL_TUBULAR_PRESETS,
   RENAL_TUBULAR_PRESET_LABELS,
+  RENAL_TUBULAR_PRESET_GLOSS,
   PRESET_ORDER as RENAL_TUBULAR_PRESET_ORDER,
 } from './presets';
 import { perturbWaterDeprivation as perturbWaterDeprivation } from './engine';
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<RenalTubularState, RenalTubularInputs, Renal
   defaults: DEFAULT_RENAL_TUBULAR_INPUTS,
   presets: RENAL_TUBULAR_PRESETS,
   labels: RENAL_TUBULAR_PRESET_LABELS,
+  gloss: RENAL_TUBULAR_PRESET_GLOSS,
   order: RENAL_TUBULAR_PRESET_ORDER,
   questions: RENAL_TUBULAR_QUESTIONS,
   content: renalTubularContent,

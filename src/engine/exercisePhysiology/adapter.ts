@@ -8,6 +8,7 @@ import {
   DEFAULT_EXERCISE_INPUTS,
   EXERCISE_PRESETS,
   EXERCISE_PRESET_LABELS,
+  EXERCISE_PRESET_GLOSS,
   EXERCISE_PRESET_ORDER,
 } from './presets';
 import { perturbSprintSurge as perturbSprintSurge } from './engine';
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<ExerciseInternalState, ExerciseInputs, Exerc
   defaults: DEFAULT_EXERCISE_INPUTS,
   presets: EXERCISE_PRESETS,
   labels: EXERCISE_PRESET_LABELS,
+  gloss: EXERCISE_PRESET_GLOSS,
   order: EXERCISE_PRESET_ORDER,
   questions: EXERCISE_QUESTIONS,
   content: exercisePhysiologyContent,

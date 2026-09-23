@@ -31,9 +31,16 @@ const PLOT_H = 90;
 const PAD_X = 6;
 const PAD_Y = 8;
 
-function toPoints(values: number[], domainMin: number, domainMax: number): string {
+/**
+ * `capacity` is the engine's `historyCapacity` — the number of points the frame is sized for, not
+ * the number it currently holds. Without it a trace is stretched across the whole plot however few
+ * points it has, so a module opening on a chart that is still filling draws a two-point line corner
+ * to corner and compresses it on every tick. The web's `Sparkline` takes the same value through the
+ * module shell; this is the hand-written half of that pair.
+ */
+function toPoints(values: number[], domainMin: number, domainMax: number, capacity: number | null): string {
   if (values.length === 0) return '';
-  const n = values.length;
+  const n = Math.max(values.length, capacity ?? 0);
   const span = domainMax - domainMin || 1;
   return values
     .map((v, i) => {
@@ -53,9 +60,10 @@ interface SparklineProps<History> {
   spec: SparklineSpec<History>;
   history: readonly History[];
   baselineHistory: readonly History[] | null;
+  capacity: number | null;
 }
 
-function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<History>) {
+function Sparkline<History>({ spec, history, baselineHistory, capacity }: SparklineProps<History>) {
   const theme = useThemeName();
   const chrome = useChrome();
   const values = spec.data(history);
@@ -64,7 +72,7 @@ function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<H
     : baselineHistory && baselineHistory.length
       ? spec.data(baselineHistory)
       : null;
-  const d = toPoints(values, spec.domainMin, spec.domainMax);
+  const d = toPoints(values, spec.domainMin, spec.domainMax, capacity);
   const color = resolveColor(spec.colorToken, theme);
   const baselineColor = spec.secondaryColorToken
     ? resolveColor(spec.secondaryColorToken, theme)
@@ -81,7 +89,7 @@ function Sparkline<History>({ spec, history, baselineHistory }: SparklineProps<H
         <Line x1={PAD_X} y1={PAD_Y} x2={PLOT_W - PAD_X} y2={PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         <Line x1={PAD_X} y1={PLOT_H - PAD_Y} x2={PLOT_W - PAD_X} y2={PLOT_H - PAD_Y} stroke={chrome.axis} strokeWidth={1} />
         {baselineValues && baselineValues.length > 1 && (
-          <Path d={toPoints(baselineValues, spec.domainMin, spec.domainMax)} stroke={baselineColor} strokeWidth={1.5} fill="none" opacity={0.55} strokeDasharray="3,3" />
+          <Path d={toPoints(baselineValues, spec.domainMin, spec.domainMax, capacity)} stroke={baselineColor} strokeWidth={1.5} fill="none" opacity={0.55} strokeDasharray="3,3" />
         )}
         {d && <Path d={d} stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />}
       </Svg>
@@ -151,6 +159,8 @@ interface TrendsViewProps<History, Derived> {
   charts: readonly ChartSpec<History, Derived>[];
   history: readonly History[];
   baselineHistory: readonly History[] | null;
+  /** The engine's `historyCapacity`; see `toPoints`. */
+  capacity: number | null;
   derived: Derived;
 }
 
@@ -158,13 +168,14 @@ export function TrendsView<History, Derived>({
   charts,
   history,
   baselineHistory,
+  capacity,
   derived,
 }: TrendsViewProps<History, Derived>) {
   return (
     <View style={styles.container}>
       {charts.map((chart, i) =>
         chart.kind === 'sparkline' ? (
-          <Sparkline key={chart.label ?? i} spec={chart} history={history} baselineHistory={baselineHistory} />
+          <Sparkline key={chart.label ?? i} spec={chart} history={history} baselineHistory={baselineHistory} capacity={capacity} />
         ) : (
           <OdCurve key={i} spec={chart} derived={derived} />
         ),

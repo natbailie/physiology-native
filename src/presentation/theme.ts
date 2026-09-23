@@ -44,7 +44,19 @@ const STORAGE_KEY = 'theme';
  * follow their device, including when the device changes at dusk. This mirrors the web's
  * `useTheme.ts`, which says the same thing about `localStorage`.
  */
-let preference: ThemePreference = 'system';
+/**
+ * The default when nothing is stored: dark, deliberately. This is an instrument console and
+ * most of the studying it is built for happens at night.
+ *
+ * Which is why 'system' is a STORED value here rather than the absence of one. It used to be
+ * the absence, and that worked only while absence also meant "follow the device". With dark as
+ * the default the two readings collide: an absent key now means dark, so clearing the key on
+ * "Device" would hand the learner dark and quietly remove the only route back. The web's
+ * `useTheme.ts` and the pre-paint script in `index.html` make the same call for the same reason.
+ */
+const DEFAULT_PREFERENCE: ThemePreference = 'dark';
+
+let preference: ThemePreference = DEFAULT_PREFERENCE;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -61,26 +73,28 @@ function subscribe(listener: () => void): () => void {
 const getPreference = () => preference;
 
 /**
- * Read back at launch. Fire-and-forget on purpose: the first paint uses `system`, which is the
- * right answer for everyone who has never touched the toggle, and the stored choice lands a frame
- * later for the few who have. Blocking the splash on a disk read to avoid that is a bad trade.
+ * Read back at launch. Fire-and-forget on purpose: the first paint uses the dark default, which
+ * is the right answer for everyone who has never touched the toggle, and the stored choice lands a
+ * frame later for the few who have. Blocking the splash on a disk read to avoid that is a bad
+ * trade — and the frame is now far less visible than it was, because the default and the most
+ * common stored choice are the same colour.
  */
 void AsyncStorage.getItem(STORAGE_KEY)
   .then((stored) => {
-    if (stored === 'light' || stored === 'dark') {
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
       preference = stored;
       emit();
     }
   })
   .catch(() => {
-    /* No storage. `system` stands, which is a working app rather than a broken one. */
+    /* No storage. The default stands, which is a working app rather than a broken one. */
   });
 
 export function setThemePreference(next: ThemePreference) {
   preference = next;
   emit();
-  const write = next === 'system' ? AsyncStorage.removeItem(STORAGE_KEY) : AsyncStorage.setItem(STORAGE_KEY, next);
-  void write.catch(() => {
+  // All three states are written, 'system' included — see DEFAULT_PREFERENCE above.
+  void AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {
     /* The choice still applies for this session. */
   });
 }
@@ -119,6 +133,16 @@ export interface Palette {
   brandInkDim: string;
   /** The accent as it reads ON that ink, which is not the same hue as `brand` on the page. */
   brandOnInk: string;
+  /** The instrument slab a readout tile is printed on, and the type that sits on it.
+   *
+   *  It inverts with the theme like everything else and deliberately is NOT near-black in light:
+   *  the signal bases are calibrated on white, so on a dark tile the worst of them reads at
+   *  2.48:1. What makes a tile read as an instrument in either theme is the mono numeral, the
+   *  tight border and the halo. See the token's own comment upstream in index.css. */
+  readoutInk: string;
+  readoutInkBorder: string;
+  onReadoutInk: string;
+  readoutInkDim: string;
   /** Signals. */
   ok: string;
   warn: string;
@@ -136,6 +160,10 @@ function paletteFor(theme: ThemeName): Palette {
     textFaint: token(theme, '--text-faint'),
     brand: token(theme, '--brand'),
     onSolid: token(theme, '--on-solid'),
+    readoutInk: token(theme, '--readout-ink'),
+    readoutInkBorder: token(theme, '--readout-ink-border'),
+    onReadoutInk: token(theme, '--on-readout-ink'),
+    readoutInkDim: token(theme, '--readout-ink-dim'),
     brandInk: token(theme, '--brand-ink'),
     brandInkBorder: token(theme, '--brand-ink-border'),
     onBrandInk: token(theme, '--on-brand-ink'),
@@ -183,6 +211,18 @@ export const TAP = 44;
 
 /** `--tracking-tight`, in points at the size it is used on — headings only. */
 export const TRACKING_TIGHT = -0.3;
+
+/**
+ * `--dur-fast` / `--dur` / `--ease`, the web's motion tokens.
+ *
+ * They were the one part of the house style with no counterpart here, so the two animated surfaces
+ * that existed each chose their own number. A press is on the fast one for the reason the web's is:
+ * a press that decays over the full 180ms still reads as slow once the finger has gone.
+ */
+export const DURATION = { fast: 120, base: 180 } as const;
+
+/** `cubic-bezier(0.2, 0, 0, 1)`, as `Easing.bezier` arguments. */
+export const EASE = [0.2, 0, 0, 1] as const;
 
 /* ------------------------------------------------------------------ */
 /*  The hook                                                           */

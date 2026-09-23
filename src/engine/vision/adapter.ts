@@ -8,6 +8,7 @@ import {
   DEFAULT_VISION_INPUTS,
   VISION_PRESETS,
   VISION_PRESET_LABELS,
+  VISION_PRESET_GLOSS,
   VISION_PRESET_ORDER,
 } from './presets';
 import { perturbLightsOut as perturbLightsOut, perturbBrightGlare as perturbBrightGlare, perturbShineTorch as perturbShineTorch, perturbTorchOff as perturbTorchOff } from './engine';
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<VisionInternalState, VisionInputs, VisionDer
   defaults: DEFAULT_VISION_INPUTS,
   presets: VISION_PRESETS,
   labels: VISION_PRESET_LABELS,
+  gloss: VISION_PRESET_GLOSS,
   order: VISION_PRESET_ORDER,
   questions: VISION_QUESTIONS,
   content: visionContent,

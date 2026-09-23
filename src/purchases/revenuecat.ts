@@ -167,3 +167,32 @@ export async function hasActiveEntitlement(appUserId: string): Promise<boolean> 
     return false;
   }
 }
+
+/**
+ * Tell RevenueCat what this learner is revising for.
+ *
+ * The web sibling has to defer this to the pricing page, because its SDK is an 840 kB lazy chunk
+ * that setting an attribute would pull for every signed-in learner. Nothing of the sort applies
+ * here — `react-native-purchases` is a native module linked into the binary whether or not anyone
+ * buys anything — so this is called on sign-in and whenever the profile changes, which is the
+ * moment the attribute is actually true.
+ *
+ * Swallows its failure for the same reason every other call in this file does: a learner must
+ * never be blocked from using the app because an analytics attribute would not save.
+ */
+export async function setExamAttributes(
+  appUserId: string,
+  attributes: { targetExam: string | null; trainingLevel: string | null },
+): Promise<void> {
+  if (!isRevenueCatConfigured) return;
+
+  try {
+    await sdk(appUserId);
+    await Purchases.setAttributes({
+      target_exam: attributes.targetExam,
+      training_level: attributes.trainingLevel,
+    });
+  } catch {
+    // Segmentation is not worth an error a learner would see.
+  }
+}

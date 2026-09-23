@@ -7,6 +7,7 @@ import {
   DEFAULT_MICTURITION_INPUTS,
   MICTURITION_PRESETS,
   MICTURITION_PRESET_LABELS,
+  MICTURITION_PRESET_GLOSS,
   MICTURITION_PRESET_ORDER,
 } from './presets';
 import { MICTURITION_QUESTIONS } from './questions';
@@ -27,6 +28,7 @@ export const adapter: ModuleAdapter<MicturitionInternalState, MicturitionInputs,
   defaults: DEFAULT_MICTURITION_INPUTS,
   presets: MICTURITION_PRESETS,
   labels: MICTURITION_PRESET_LABELS,
+  gloss: MICTURITION_PRESET_GLOSS,
   order: MICTURITION_PRESET_ORDER,
   questions: MICTURITION_QUESTIONS,
   content: micturitionContent,

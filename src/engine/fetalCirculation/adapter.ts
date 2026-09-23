@@ -10,7 +10,7 @@ import {
   FETAL_PRESET_ORDER,
   FETAL_PRESET_SETTLE_SECONDS,
 } from './presets';
-import { perturbFirstBreath as perturbFirstBreath, perturbReopenDuct as perturbReopenDuct } from './engine';
+import { perturbFirstBreath } from './engine';
 import { FETAL_QUESTIONS } from './questions';
 import type { FetalState, FetalDerived, FetalInputs, FetalHistoryPoint } from './types';
 
@@ -34,8 +34,9 @@ export const adapter: ModuleAdapter<FetalState, FetalInputs, FetalDerived, Fetal
   settleOverrides: FETAL_PRESET_SETTLE_SECONDS,
   content: fetalCirculationContent,
   presetActiveKey: (id: string) => id,
-  actions: (inputs, perturb) => [
+  actions: (inputs, perturb, nudge) => [
     { label: 'First breath', onPress: () => perturb((s) => perturbFirstBreath(s)), variant: 'impulse' },
-    { label: 'Reopen duct', onPress: () => perturb((s) => perturbReopenDuct(s)), variant: 'impulse' },
+    // A duct is held open BY prostaglandin, for as long as the infusion runs.
+    { label: 'Reopen duct', onPress: () => nudge({ prostaglandinLevel: 60 }), variant: 'impulse' },
   ],
 };

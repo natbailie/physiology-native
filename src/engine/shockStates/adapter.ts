@@ -8,9 +8,9 @@ import {
   DEFAULT_SHOCK_INPUTS,
   SHOCK_PRESETS,
   SHOCK_PRESET_LABELS,
+  SHOCK_PRESET_GLOSS,
   SHOCK_PRESET_ORDER,
 } from './presets';
-import { perturbHaemorrhage as perturbHaemorrhage, perturbFluidBolus as perturbFluidBolus } from './engine';
 import { SHOCK_QUESTIONS } from './questions';
 import type { ShockState, ShockDerived, ShockInputs, ShockHistoryPoint } from './types';
 
@@ -29,13 +29,15 @@ export const adapter: ModuleAdapter<ShockState, ShockInputs, ShockDerived, Shock
   defaults: DEFAULT_SHOCK_INPUTS,
   presets: SHOCK_PRESETS,
   labels: SHOCK_PRESET_LABELS,
+  gloss: SHOCK_PRESET_GLOSS,
   order: SHOCK_PRESET_ORDER,
   questions: SHOCK_QUESTIONS,
   content: shockStatesContent,
   diagramClasses,
   presetActiveKey: (id: string) => id,
-  actions: (inputs, perturb) => [
-    { label: 'Haemorrhage', onPress: () => perturb((s) => perturbHaemorrhage(s, 1000)), variant: 'impulse' },
-    { label: 'Fluid bolus', onPress: () => perturb((s) => perturbFluidBolus(s, 1000)), variant: 'impulse' },
+  // A litre in or out moves the blood-volume slider, not a hidden offset behind it.
+  actions: (inputs, perturb, nudge) => [
+    { label: 'Haemorrhage', onPress: () => nudge({ bloodVolumeMl: -1000 }), variant: 'danger' },
+    { label: 'Fluid bolus', onPress: () => nudge({ bloodVolumeMl: 1000 }), variant: 'impulse' },
   ],
 };

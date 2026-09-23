@@ -7,6 +7,7 @@ import {
   DEFAULT_ELECTROLYTE_INPUTS,
   ELECTROLYTE_PRESETS,
   ELECTROLYTE_PRESET_LABELS,
+  ELECTROLYTE_PRESET_GLOSS,
   ELECTROLYTE_PRESET_ORDER,
 } from './presets';
 import { perturbGiveInsulin as perturbElectrolyteGiveInsulin, perturbSalineBolus as perturbSalineBolus, perturbPotassiumBolus as perturbPotassiumBolus } from './engine';
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<ElectrolyteState, ElectrolyteInputs, Electro
   defaults: DEFAULT_ELECTROLYTE_INPUTS,
   presets: ELECTROLYTE_PRESETS,
   labels: ELECTROLYTE_PRESET_LABELS,
+  gloss: ELECTROLYTE_PRESET_GLOSS,
   order: ELECTROLYTE_PRESET_ORDER,
   questions: ELECTROLYTE_QUESTIONS,
   content: electrolyteBalanceContent,

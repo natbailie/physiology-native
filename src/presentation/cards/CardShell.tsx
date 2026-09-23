@@ -13,10 +13,11 @@
  * is already a dependency for the diagrams, so the gradient is drawn rather than approximated
  * with a low-opacity disc, which would reintroduce the very edge that comment is about.
  */
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import Svg, { Defs, Rect, RadialGradient, Stop } from 'react-native-svg';
-import { ACCENT_WASH_OPACITY, RADIUS, SPACE, useAppTheme } from '../theme';
+import { ACCENT_WASH_OPACITY, DURATION, EASE, RADIUS, SPACE, useAppTheme } from '../theme';
+import { useReduceMotion } from '../useReduceMotion';
 
 interface CardShellProps {
   /** The module/theme/subject accent, already resolved to hex. Absent falls back to the hairline,
@@ -36,6 +37,10 @@ interface CardShellProps {
 /** 9rem at the browser's 16px root — the radius of the web's wash. */
 const WASH = 144;
 
+/** How far the tile sinks under a finger. The web's card lifts 2px on hover and settles back to
+ *  0.99 on `:active`; with no hover to lift from, the press is the whole of the gesture here. */
+const PRESS_SCALE = 0.97;
+
 export function CardShell({
   accent,
   onPress,
@@ -53,6 +58,37 @@ export function CardShell({
    * and cards of different colours keep their own.
    */
   const washId = `wash${accent?.replace(/[^a-z0-9]/gi, '') ?? ''}`;
+
+  /**
+   * The press, animated rather than switched.
+   *
+   * The opacity swap below was instant, so a tile went dim and back with no sense of being pushed,
+   * and a navigation that then takes a moment to arrive read as a tap that had not registered. A
+   * scale gives the press somewhere to go.
+   *
+   * React Native's own `Animated` rather than Reanimated, for the reason `ControlDock` sets out:
+   * Reanimated is a transitive dependency here at a version expo-router does not pin, there is no
+   * `GestureHandlerRootView` at the root, and `babel.config.js` carries none of its plugins. Unlike
+   * the dock's height, a scale IS a transform, so this one runs on the UI thread — which matters on
+   * a grid of thirty tiles and on the frame where opening a module settles its engine.
+   *
+   * A lazy `useState` rather than a ref because the value is read during render to build the
+   * transform, which is what `react-hooks/refs` forbids a ref to be used for.
+   */
+  const [press] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReduceMotion();
+  const animatePress = useCallback(
+    (down: boolean) => {
+      Animated.timing(press, {
+        toValue: down ? 1 : 0,
+        duration: reduceMotion ? 0 : DURATION.fast,
+        easing: Easing.bezier(...EASE),
+        useNativeDriver: true,
+      }).start();
+    },
+    [press, reduceMotion],
+  );
+  const scale = press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE] });
 
   const body = (pressed: boolean) => (
     <View
@@ -87,8 +123,14 @@ export function CardShell({
   if (!onPress) return body(false);
 
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
-      {({ pressed }) => body(pressed)}
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => animatePress(true)}
+      onPressOut={() => animatePress(false)}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
+      {({ pressed }) => <Animated.View style={{ transform: [{ scale }] }}>{body(pressed)}</Animated.View>}
     </Pressable>
   );
 }
@@ -118,7 +160,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   // The web lifts the tile 2px and deepens the accent on hover. A phone has no hover, so the
-  // same budget is spent on the press state instead.
+  // same budget is spent on the press state instead — now a scale as well as this, so the tile
+  // moves under the finger rather than only changing colour.
   pressed: { opacity: 0.75 },
   dimmed: { opacity: 0.55 },
   nameRow: {

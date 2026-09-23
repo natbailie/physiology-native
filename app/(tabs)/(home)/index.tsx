@@ -1,16 +1,25 @@
+import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNativeEntitlement } from '../../../src/purchases/useNativeEntitlement';
 import { MEDICATIONS } from '../../../src/medications/drugs';
 import { DISCIPLINES, MODULES, THEMES, type DisciplineId } from '../../../src/home/moduleRegistry';
+import { matchesExam, seedExamFilter, useExamFilter } from '../../../src/home/examFilter';
+import { useExamProfile } from '../../../src/account/examProfile';
+import { ExamFilterBar } from '../../../src/presentation/ExamFilterBar';
 import { useModuleProgress } from '../../../src/home/useModuleProgress';
-import { useProgressStore } from '../../../src/shared/assessment/useProgressStore';
 import { DisciplineCard } from '../../../src/presentation/cards/DisciplineCard';
 import { ModuleCard } from '../../../src/presentation/cards/ModuleCard';
+import { RoundBoard } from '../../../src/presentation/RoundBoard';
 import { StudyReport } from '../../../src/presentation/StudyReport';
 import { StudyStrip } from '../../../src/presentation/StudyStrip';
+import { useRound } from '../../../src/home/useRound';
 import { FONT, LINE, SPACE, TRACKING_TIGHT, useAppTheme } from '../../../src/presentation/theme';
+
+/** Module id -> display name. Module-scope so `useRound`'s memo sees a stable function. */
+const MODULE_NAMES = new Map(MODULES.map((module) => [module.id, module.name]));
+const moduleNameOf = (moduleId: string): string => MODULE_NAMES.get(moduleId) ?? moduleId;
 
 /**
  * The top of the catalogue: pick a subject.
@@ -25,9 +34,23 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { color } = useAppTheme();
-  const { isUnlocked } = useNativeEntitlement();
+  const entitlement = useNativeEntitlement();
+  const { isUnlocked } = entitlement;
   const { progress, totals, weakSpots } = useModuleProgress();
-  const store = useProgressStore();
+  const round = useRound(moduleNameOf, entitlement);
+
+  const examFilter = useExamFilter();
+  const { targetExam, ready: profileReady } = useExamProfile();
+
+  // The saved exam seeds the filter on a first run, and never overrules a learner who has since
+  // chosen to look at something else — see `seedExamFilter`.
+  //
+  // In an effect, not in the render body: seeding during render notified the store's subscribers
+  // mid-render, and `examFilter` above had already been read as null for that pass, so the counts
+  // below were computed unfiltered and then flipped.
+  useEffect(() => {
+    if (profileReady) seedExamFilter(targetExam);
+  }, [profileReady, targetExam]);
 
   const reference = MODULES.find((module) => module.kind === 'reference');
 
@@ -41,6 +64,7 @@ export default function HomeScreen() {
   for (const module of MODULES) {
     if (!module.theme || module.kind === 'reference') continue;
     const discipline = disciplineOf.get(module.theme);
+    if (!matchesExam(module.exams, examFilter)) continue;
     if (discipline) byDiscipline.set(discipline, (byDiscipline.get(discipline) ?? 0) + 1);
   }
 
@@ -56,18 +80,8 @@ export default function HomeScreen() {
         USMLE, MRCP). Pick a subject to explore.
       </Text>
 
-      <StudyStrip
-        dueCount={totals.due}
-        streakDays={store.streak()}
-        known={totals.known}
-        totalQuestions={totals.totalQuestions}
-        attempted={totals.attempted}
-        reviewModuleId={totals.reviewModuleId}
-        reviewModuleName={totals.reviewModuleName}
-        onReview={(id) => router.push(`/module/${id}`)}
-      />
+      <ExamFilterBar />
 
-      <StudyReport weakSpots={weakSpots} onOpenModule={(id) => router.push(`/module/${id}`)} />
 
       {DISCIPLINES.map((discipline) => {
         const count = byDiscipline.get(discipline.id) ?? 0;
@@ -92,6 +106,23 @@ export default function HomeScreen() {
           />
         );
       })}
+
+      {/* The round sits BELOW the subject grid, as on the web: picking what to study is the
+          decision a learner arrives with, and the round is what they do once they have picked. */}
+      <RoundBoard
+        round={round}
+        onOpenBed={(bed) => router.push(`/module/${bed.moduleId}?case=${bed.id}`)}
+        onOpenPricing={() => router.push('/pricing')}
+      />
+
+      <StudyStrip
+        dueCount={totals.due}
+        known={totals.known}
+        totalQuestions={totals.totalQuestions}
+        attempted={totals.attempted}
+      />
+
+      <StudyReport weakSpots={weakSpots} onOpenModule={(id) => router.push(`/module/${id}`)} />
 
       {reference && (
         <View style={styles.tools}>

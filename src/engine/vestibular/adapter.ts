@@ -8,6 +8,7 @@ import {
   DEFAULT_VESTIBULAR_INPUTS,
   VESTIBULAR_PRESETS,
   VESTIBULAR_PRESET_LABELS,
+  VESTIBULAR_PRESET_GLOSS,
   VESTIBULAR_PRESET_ORDER,
 } from './presets';
 import { perturbPerformHallpike as perturbPerformHallpike, perturbHeadImpulse as perturbHeadImpulse } from './engine';
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<VestibularInternalState, VestibularInputs, V
   defaults: DEFAULT_VESTIBULAR_INPUTS,
   presets: VESTIBULAR_PRESETS,
   labels: VESTIBULAR_PRESET_LABELS,
+  gloss: VESTIBULAR_PRESET_GLOSS,
   order: VESTIBULAR_PRESET_ORDER,
   questions: VESTIBULAR_QUESTIONS,
   content: vestibularContent,

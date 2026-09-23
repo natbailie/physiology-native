@@ -25,6 +25,15 @@ export interface ModuleAdapter<TState, TInputs, TDerived, THistoryPoint> {
   defaults: TInputs;
   presets: Record<string, Partial<TInputs>>;
   labels: Record<string, string>;
+  /**
+   * One line per scenario saying what it IS, for the options of a pattern question.
+   *
+   * Sparse on purpose: only the modules that ask pattern questions have one, and a module may
+   * gloss more scenarios than it offers. It reaches the adapter rather than the screen for the
+   * same reason `labels` does — the export name is per module, and that is exactly the variance
+   * an adapter absorbs. The web passes the same constant into `useModuleCases`.
+   */
+  gloss?: Record<string, string>;
   order: string[];
   settleOverrides?: Record<string, number>;
   /**
@@ -54,10 +63,24 @@ export interface ModuleAdapter<TState, TInputs, TDerived, THistoryPoint> {
    */
   diagramClasses?: DiagramClasses;
   presetActiveKey: (id: string) => string;
+  /**
+   * The one-off buttons in the scenario bar, and the two ways one can act.
+   *
+   * `perturb` writes engine STATE, for something momentary — a stimulus, a manoeuvre, a bolus,
+   * whose decay is the physiology and which has no standing quantity to hold. `nudge` writes the
+   * INPUTS, clamped to the slider's own range, for a standing change to the patient: a litre of
+   * blood lost stays lost, and the rail has to show it. Every one of these buttons used to take
+   * only `perturb`, so a haemorrhage moved the model while the blood-volume slider went on reading
+   * its starting value — the screen told the learner two different things about one patient.
+   *
+   * `variant` carries 'danger' as well as 'impulse' because the web's bar does, and a bar where an
+   * insult and a treatment look alike is a bar that has stopped saying which is which.
+   */
   actions: (
     inputs: TInputs,
     perturb: (fn: (state: TState) => TState) => void,
-  ) => { label: string; onPress: () => void; variant: 'impulse' }[];
+    nudge: (deltas: Partial<Record<string & keyof TInputs, number>>) => void,
+  ) => { label: string; onPress: () => void; variant: 'impulse' | 'danger' }[];
 }
 
 /** An adapter whose type parameters have been erased, as the screen sees it after loading. */

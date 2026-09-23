@@ -9,7 +9,7 @@ import {
   CAPILLARY_PRESET_LABELS,
   CAPILLARY_PRESET_ORDER,
 } from './presets';
-import { perturbAlbuminInfusion as perturbAlbuminInfusion, perturbStandUp as perturbStandUp } from './engine';
+import { perturbAlbuminInfusion } from './engine';
 import { CAPILLARY_QUESTIONS } from './questions';
 import type { CapillaryState, CapillaryDerived, CapillaryInputs, CapillaryHistoryPoint } from './types';
 
@@ -32,8 +32,9 @@ export const adapter: ModuleAdapter<CapillaryState, CapillaryInputs, CapillaryDe
   questions: CAPILLARY_QUESTIONS,
   content: capillaryExchangeContent,
   presetActiveKey: (id: string) => id,
-  actions: (inputs, perturb) => [
+  actions: (inputs, perturb, nudge) => [
     { label: 'Albumin infusion', onPress: () => perturb((s) => perturbAlbuminInfusion(s, 500)), variant: 'impulse' },
-    { label: 'Stand up', onPress: () => perturb((s) => perturbStandUp(s, 0.04)), variant: 'impulse' },
+    // You stay standing, and standing raises the venous pressure at the ankle.
+    { label: 'Stand up', onPress: () => nudge({ venousOutflowPressure: 25 }), variant: 'danger' },
   ],
 };

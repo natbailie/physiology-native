@@ -8,6 +8,7 @@ import {
   DEFAULT_RESP_INPUTS,
   RESP_PRESETS,
   RESP_PRESET_LABELS,
+  RESP_PRESET_GLOSS,
   PRESET_ORDER as RESP_PRESET_ORDER,
 } from './presets';
 import { perturbAirwayObstruction } from './engine';
@@ -29,6 +30,7 @@ export const adapter: ModuleAdapter<RespState, RespInputs, RespDerived, RespHist
   defaults: DEFAULT_RESP_INPUTS,
   presets: RESP_PRESETS,
   labels: RESP_PRESET_LABELS,
+  gloss: RESP_PRESET_GLOSS,
   order: RESP_PRESET_ORDER,
   questions: RESPIRATORY_QUESTIONS,
   content: respiratoryContent,

@@ -9,7 +9,7 @@ import {
   CEREBRAL_PRESET_LABELS,
   CEREBRAL_PRESET_ORDER,
 } from './presets';
-import { perturbDrainCsf as perturbDrainCsf, perturbAcuteBleed as perturbAcuteBleed } from './engine';
+import { perturbDrainCsf } from './engine';
 import { CEREBRAL_QUESTIONS } from './questions';
 import type { CerebralInternalState, CerebralDerived, CerebralInputs, CerebralHistoryPoint } from './types';
 
@@ -32,8 +32,10 @@ export const adapter: ModuleAdapter<CerebralInternalState, CerebralInputs, Cereb
   questions: CEREBRAL_QUESTIONS,
   content: cerebralPerfusionContent,
   presetActiveKey: (id: string) => id,
-  actions: (inputs, perturb) => [
+  actions: (inputs, perturb, nudge) => [
     { label: 'Drain CSF', onPress: () => perturb((s) => perturbDrainCsf(s, 120)), variant: 'impulse' },
-    { label: 'Acute bleed', onPress: () => perturb((s) => perturbAcuteBleed(s, 200)), variant: 'impulse' },
+    // A haematoma is a mass in the box and it stays there. Twenty millilitres, matching the web:
+    // this button read 200 here and 20 there, which is a divergence the sync cannot see.
+    { label: 'Acute bleed', onPress: () => nudge({ massVolumeMl: 20 }), variant: 'danger' },
   ],
 };

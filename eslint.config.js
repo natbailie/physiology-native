@@ -30,6 +30,7 @@ module.exports = [
       'src/shared/explainer/**',
       'src/home/**',
       'src/auth/**',
+      'src/account/**',
       'src/billing/**',
       'src/lib/supabase.ts',
       'src/presentation/presentationTypes.ts',

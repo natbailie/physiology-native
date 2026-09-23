@@ -9,7 +9,7 @@ import {
   VENOUS_RETURN_PRESET_LABELS,
   VENOUS_RETURN_PRESET_ORDER,
 } from './presets';
-import { perturbHemorrhage as perturbHemorrhage, perturbTransfusion as perturbTransfusion, perturbValsalva as perturbValsalva } from './engine';
+import { perturbValsalva } from './engine';
 import { VENOUS_RETURN_QUESTIONS } from './questions';
 import type { VenousReturnState, VenousReturnDerived, VenousReturnInputs, VenousReturnHistoryPoint } from './types';
 
@@ -32,9 +32,10 @@ export const adapter: ModuleAdapter<VenousReturnState, VenousReturnInputs, Venou
   questions: VENOUS_RETURN_QUESTIONS,
   content: venousReturnContent,
   presetActiveKey: (id: string) => id,
-  actions: (inputs, perturb) => [
-    { label: 'Haemorrhage', onPress: () => perturb((s) => perturbHemorrhage(s, 1000)), variant: 'impulse' },
-    { label: 'Transfusion', onPress: () => perturb((s) => perturbTransfusion(s, 1000)), variant: 'impulse' },
+  // Blood lost or given is standing and moves the slider; a Valsalva is a manoeuvre and does not.
+  actions: (inputs, perturb, nudge) => [
+    { label: 'Haemorrhage', onPress: () => nudge({ bloodVolumeMl: -1000 }), variant: 'danger' },
+    { label: 'Transfusion', onPress: () => nudge({ bloodVolumeMl: 1000 }), variant: 'impulse' },
     { label: 'Valsalva', onPress: () => perturb((s) => perturbValsalva(s)), variant: 'impulse' },
   ],
 };

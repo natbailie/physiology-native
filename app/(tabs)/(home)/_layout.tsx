@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useAppTheme } from '../../../src/presentation/theme';
+import { DURATION, useAppTheme } from '../../../src/presentation/theme';
 
 /**
  * The catalogue's three tiers, mirroring the web's `#home` → `#discipline/<id>` → `#theme/<id>`.
@@ -16,6 +16,10 @@ export default function HomeStackLayout() {
         headerStyle: { backgroundColor: color.panel },
         headerTintColor: color.text,
         contentStyle: { backgroundColor: color.bg },
+        // Matched to the root stack's, so stepping down the catalogue and opening a module out of
+        // it are one continuous gesture rather than two different ones. See `app/_layout.tsx`.
+        animation: 'slide_from_right',
+        animationDuration: DURATION.base,
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Physiology' }} />

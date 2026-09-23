@@ -3,6 +3,8 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MEDICATIONS } from '../../../../src/medications/drugs';
 import { DISCIPLINES, MODULES, THEMES } from '../../../../src/home/moduleRegistry';
+import { matchesExam, useExamFilter } from '../../../../src/home/examFilter';
+import { ExamFilterBar } from '../../../../src/presentation/ExamFilterBar';
 import { ThemeCard } from '../../../../src/presentation/cards/ThemeCard';
 import { FONT, LINE, SPACE, TRACKING_TIGHT, useAppTheme } from '../../../../src/presentation/theme';
 
@@ -17,6 +19,7 @@ export default function DisciplineScreen() {
   const { color } = useAppTheme();
 
   const discipline = DISCIPLINES.find((d) => d.id === id);
+  const examFilter = useExamFilter();
 
   if (!discipline) {
     return (
@@ -27,14 +30,22 @@ export default function DisciplineScreen() {
     );
   }
 
-  const themes = THEMES.filter((theme) => theme.discipline === discipline.id);
+  const allThemes = THEMES.filter((theme) => theme.discipline === discipline.id);
 
   // Counted in the same pass the grid renders from, so a theme can never claim a module count
   // that the page behind it will not actually display.
   const byTheme = new Map<string, number>();
   for (const module of MODULES) {
-    if (module.theme) byTheme.set(module.theme, (byTheme.get(module.theme) ?? 0) + 1);
+    if (module.theme && matchesExam(module.exams, examFilter)) {
+      byTheme.set(module.theme, (byTheme.get(module.theme) ?? 0) + 1);
+    }
   }
+
+  // A theme left with nothing in it under the filter is dropped rather than shown reading
+  // "0 simulators": the count is the card's whole purpose, and zero is not an invitation.
+  const themes = allThemes.filter(
+    (theme) => examFilter === null || theme.id === 'medications' || (byTheme.get(theme.id) ?? 0) > 0,
+  );
 
   return (
     <ScrollView
@@ -44,6 +55,8 @@ export default function DisciplineScreen() {
       <Stack.Screen options={{ title: discipline.name }} />
 
       <Text style={[styles.blurb, { color: color.textDim }]}>{discipline.blurb}</Text>
+
+      <ExamFilterBar />
 
       {themes.map((theme) => (
         <ThemeCard

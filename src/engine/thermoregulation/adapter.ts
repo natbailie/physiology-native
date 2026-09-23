@@ -7,6 +7,7 @@ import {
   DEFAULT_THERMO_INPUTS,
   THERMO_PRESETS,
   THERMO_PRESET_LABELS,
+  THERMO_PRESET_GLOSS,
   THERMO_PRESET_ORDER,
 } from './presets';
 import { perturbGiveAntipyretic as perturbGiveAntipyretic, perturbActiveCooling as perturbActiveCooling, perturbActiveRewarming as perturbActiveRewarming } from './engine';
@@ -28,6 +29,7 @@ export const adapter: ModuleAdapter<ThermoInternalState, ThermoInputs, ThermoDer
   defaults: DEFAULT_THERMO_INPUTS,
   presets: THERMO_PRESETS,
   labels: THERMO_PRESET_LABELS,
+  gloss: THERMO_PRESET_GLOSS,
   order: THERMO_PRESET_ORDER,
   questions: THERMO_QUESTIONS,
   content: thermoregulationContent,

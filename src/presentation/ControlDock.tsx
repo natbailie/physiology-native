@@ -16,21 +16,14 @@
  * worth taking that on.
  */
 import { useEffect, useState } from 'react';
-import {
-  AccessibilityInfo,
-  Animated,
-  Easing,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Animated, Easing, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ControlRailView } from './ControlRailView';
 import { SimControls } from './SimControls';
 import type { ControlSpec } from './types';
 import type { NativeSimTransport } from '../hooks/useNativeEngineLoop';
-import { SPACE, useAppTheme } from './theme';
+import { EASE, SPACE, useAppTheme } from './theme';
+import { useReduceMotion } from './useReduceMotion';
 
 /** The web caps its tray at 55svh. Half the window leaves the readout strip and the diagram
  *  visible above it, which is the point of dragging a slider at all. */
@@ -63,29 +56,16 @@ export function ControlDock<Inputs>({
   const hasControls = controls.length > 0;
   const [open, setOpen] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
   // A lazy useState rather than a ref: this is read during render to build the interpolation,
   // which is exactly what `react-hooks/refs` forbids a ref to be used for.
   const [progress] = useState(() => new Animated.Value(0));
-
-  // The same courtesy the web extends with `prefers-reduced-motion`.
-  useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (live) setReduceMotion(enabled);
-    });
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      live = false;
-      sub.remove();
-    };
-  }, []);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     Animated.timing(progress, {
       toValue: open ? 1 : 0,
       duration: reduceMotion ? 0 : DURATION_MS,
-      easing: Easing.bezier(0.2, 0, 0, 1),
+      easing: Easing.bezier(...EASE),
       // Height is not a transform, so this cannot run off the JS thread.
       useNativeDriver: false,
     }).start();

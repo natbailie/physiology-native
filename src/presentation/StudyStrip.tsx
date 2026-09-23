@@ -1,43 +1,38 @@
 /**
- * What a returning learner sees first. A port of the web's `src/home/StudyStrip.tsx`.
+ * What a returning learner sees under the round: two figures and a status, and no action.
+ * A port of the web's `src/home/StudyStrip.tsx`.
  *
  * Deliberately absent until they have answered something: a dashboard of zeroes is a worse first
- * impression than no dashboard, and the point of the strip is to be the reason someone opens the
- * app on a given morning — which it cannot be for a person who has never used it.
+ * impression than no dashboard.
  *
- * The native app had a version of this already, as three facts joined by middots in grey text on
- * the page ground. The web's is the house ink surface — a near-black slate panel used on the light
- * page as well as the dark one — with the due count as a display figure and a filled action next
- * to it. That surface is most of what makes the two products read as siblings, so it is what this
- * renders now.
+ * The surface is the house ink panel — a near-black slate used on the light page as well as the
+ * dark one — which is most of what makes the two products read as siblings.
+ *
+ * Two things this strip used to do and no longer does, both because the round above it is the
+ * product and this is the read-out beside it:
+ *
+ * - **No "Review X" button.** It pointed at a MODULE while the board above pointed at a PATIENT,
+ *   so the screen offered two primary actions ranked off one review ladder. `RoundBoard`'s
+ *   "Start round" is the single action now.
+ * - **No streak.** "N days in a row" is loss aversion wearing a lab coat, and it is the device the
+ *   rest of this app refuses: `StudyReport`'s prescriptions deliberately never expire, and
+ *   `currentStreak`'s own leniency exists so a missed day does not punish. `ProgressStore.streak()`
+ *   is untouched — this removes a display, not a capability.
  */
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { FONT, RADIUS, SPACE, TAP, useAppTheme } from './theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { FONT, RADIUS, SPACE, useAppTheme } from './theme';
 
 export interface StudyStripProps {
   dueCount: number;
-  streakDays: number;
   /** Questions retained, and how many there are in total. An absolute count rather than a
    *  percentage: two out of a hundred and sixteen rounds to zero, and a returning learner who has
    *  just done real work should not be told they have made none. */
   known: number;
   totalQuestions: number;
   attempted: number;
-  reviewModuleId: string | null;
-  reviewModuleName: string | null;
-  onReview: (moduleId: string) => void;
 }
 
-export function StudyStrip({
-  dueCount,
-  streakDays,
-  known,
-  totalQuestions,
-  attempted,
-  reviewModuleId,
-  reviewModuleName,
-  onReview,
-}: StudyStripProps) {
+export function StudyStrip({ dueCount, known, totalQuestions, attempted }: StudyStripProps) {
   const { color } = useAppTheme();
 
   if (attempted === 0) return null;
@@ -50,26 +45,10 @@ export function StudyStrip({
       <View style={styles.stats}>
         <Stat value={String(dueCount)} label="due today" emphasis={color.brandOnInk} />
         <View style={[styles.divider, { backgroundColor: color.brandInkBorder }]} />
-        <Stat value={String(streakDays)} label={`day${streakDays === 1 ? '' : 's'} in a row`} />
-        <View style={[styles.divider, { backgroundColor: color.brandInkBorder }]} />
         <Stat value={String(known)} suffix={`/${totalQuestions}`} label="known" />
       </View>
 
-      {dueCount > 0 && reviewModuleId ? (
-        <Pressable
-          onPress={() => onReview(reviewModuleId)}
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.action,
-            { backgroundColor: color.brand },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={[styles.actionText, { color: color.onSolid }]} numberOfLines={1}>
-            Review {reviewModuleName}
-          </Text>
-        </Pressable>
-      ) : (
+      {dueCount === 0 && (
         <Text style={[styles.caughtUp, { color: color.brandInkDim }]}>
           {known === totalQuestions
             ? 'Every question retained. Nothing due.'
@@ -111,21 +90,12 @@ const styles = StyleSheet.create({
     gap: SPACE.lg,
   },
   stats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  // Centred rather than left-aligned: the three labels are different widths, and against a shared
-  // left edge the dividers between them land at three different distances.
+  // Centred rather than left-aligned: the labels are different widths, and against a shared
+  // left edge the divider between them lands at an arbitrary distance from each.
   stat: { alignItems: 'center', gap: 2, flex: 1 },
   divider: { width: 1, alignSelf: 'stretch', marginVertical: 2 },
   statValue: { fontSize: FONT.xxl, fontWeight: '700' },
   statOf: { fontSize: FONT.base, fontWeight: '400' },
   statLabel: { fontSize: FONT.micro, fontWeight: '600', textAlign: 'center' },
-  action: {
-    minHeight: TAP,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACE.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.7 },
-  actionText: { fontSize: FONT.sm, fontWeight: '700' },
   caughtUp: { fontSize: FONT.sm, textAlign: 'center' },
 });

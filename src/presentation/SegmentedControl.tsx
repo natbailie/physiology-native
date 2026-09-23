@@ -1,12 +1,16 @@
 /**
  * An iOS segmented control.
  *
- * Two callers, and they are the reason it exists rather than being inlined twice: the theme
- * toggle (light / dark / system, mirroring the web's three-state ThemeToggle) and the module
- * screen's Simulate / Practice / Learn split.
+ * Three callers, and they are the reason it exists rather than being inlined three times: the
+ * theme toggle (light / dark / system, mirroring the web's three-state ThemeToggle) and the
+ * module screen's lab / patients / questions / lessons split.
  *
  * Sized to `TAP` throughout. The web has no touch-target floor, so this is one of the places
  * where mirroring it exactly would have produced a worse app rather than a matching one.
+ *
+ * Four-up at 375pt gives each segment ~75pt of text width once the track chrome is off, and
+ * "Questions" at 13pt semibold does not fit it — so a four-segment strip steps its labels
+ * down to micro, which does with room to spare. Three segments keep the larger size.
  */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FONT, RADIUS, TAP, useAppTheme } from './theme';
@@ -35,6 +39,7 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   const { color } = useAppTheme();
   const selectedBg = accent ?? color.brand;
+  const compact = segments.length > 3;
 
   return (
     <View
@@ -62,7 +67,7 @@ export function SegmentedControl<T extends string>({
           >
             <Text
               numberOfLines={1}
-              style={[styles.label, { color: selected ? color.onSolid : color.textDim }]}
+              style={[styles.label, compact && styles.labelCompact, { color: selected ? color.onSolid : color.textDim }]}
             >
               {segment.label}
             </Text>
@@ -91,4 +96,5 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.5 },
   label: { fontSize: FONT.xs, fontWeight: '600' },
+  labelCompact: { fontSize: FONT.micro },
 });

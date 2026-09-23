@@ -9,6 +9,7 @@
  */
 import { StyleSheet, Text, View } from 'react-native';
 import type { ModuleDescriptor } from '../../home/moduleRegistry';
+import { examShortName } from '../../home/exams';
 import { accentFrom, FONT, LINE, RADIUS, TRACKING_TIGHT, useAppTheme, withAlpha } from '../theme';
 import { Badge } from './Badge';
 import { CardNameRow, CardShell } from './CardShell';
@@ -76,6 +77,17 @@ export function ModuleCard({
       </CardNameRow>
       <Text style={[styles.tagline, { color: color.textDim }]}>{module.tagline}</Text>
       {module.kind === 'reference' && <Badge label="Reference" />}
+      {module.exams && module.exams.length > 0 && (
+        // Which papers this module is high-yield for. Quieter than `Badge`, which is a status:
+        // five of these on one card must not out-shout the module's own name.
+        <View style={styles.exams}>
+          {module.exams.map((exam) => (
+            <Text key={exam} style={[styles.exam, { color: color.textFaint, backgroundColor: color.panelRaised }]}>
+              {examShortName(exam)}
+            </Text>
+          ))}
+        </View>
+      )}
       {mastery !== undefined && (
         <View
           style={[styles.meter, { backgroundColor: color.panelBorder }]}
@@ -93,6 +105,15 @@ export function ModuleCard({
 }
 
 const styles = StyleSheet.create({
+  exams: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
+  exam: {
+    fontSize: FONT.micro,
+    fontWeight: '600',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
   name: { fontSize: FONT.lg, fontWeight: '700', letterSpacing: TRACKING_TIGHT, flexShrink: 1 },
   tagline: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.snug },
   due: {
