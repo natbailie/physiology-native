@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNativeEntitlement } from '../../../src/purchases/useNativeEntitlement';
 import { MEDICATIONS } from '../../../src/medications/drugs';
 import { DISCIPLINES, MODULES, THEMES, type DisciplineId } from '../../../src/home/moduleRegistry';
-import { matchesExam, seedExamFilter, useExamFilter } from '../../../src/home/examFilter';
+import { matchesExam, useExamFilter } from '../../../src/home/examFilter';
+import { seedExamFilter } from '../../../src/home/seedExamFilter';
 import { useExamProfile } from '../../../src/account/examProfile';
 import { ExamFilterBar } from '../../../src/presentation/ExamFilterBar';
 import { useModuleProgress } from '../../../src/home/useModuleProgress';
@@ -43,7 +44,8 @@ export default function HomeScreen() {
   const { targetExam, ready: profileReady } = useExamProfile();
 
   // The saved exam seeds the filter on a first run, and never overrules a learner who has since
-  // chosen to look at something else — see `seedExamFilter`.
+  // chosen to look at something else — see `src/home/seedExamFilter.ts`, which is native-only
+  // because `examFilter.ts` itself is file-synced from the web repo.
   //
   // In an effect, not in the render body: seeding during render notified the store's subscribers
   // mid-render, and `examFilter` above had already been read as null for that pass, so the counts

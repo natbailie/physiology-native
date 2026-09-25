@@ -69,6 +69,10 @@ const NATIVE_ONLY = new Set([
   // The module screen's case loader: hand-written here, full beds rather than the home page's
   // round-board projection. It reads the synced manifest and case files but is itself native.
   'loadModuleCases.ts',
+  // The phone seeds the catalogue filter from the learner's saved exam; the web deliberately does
+  // not. It cannot live in the synced `examFilter.ts` — an export added there is deleted by the
+  // next sync, which is how the previous version of it was lost.
+  'seedExamFilter.ts',
 ]);
 
 /* ------------------------------------------------------------------ */
@@ -81,6 +85,7 @@ const ANCHORS = {
   '@/shared/lib/wrapSvgText': 'src/shared/lib/wrapSvgText',
   '@/shared/presentation/types': 'src/presentation/presentationTypes',
   '@/shared/diagram/organShapes': 'src/presentation/organShapes',
+  '@/shared/diagram/tissueShapes': 'src/presentation/tissueShapes',
   '@/shared/assessment/types': 'src/shared/assessment/types',
   '@/shared/assessment/verifyQuestion': 'src/shared/assessment/verifyQuestion',
   '@/shared/assessment/verifyPattern': 'src/shared/assessment/verifyPattern',
@@ -168,7 +173,9 @@ function buildManifest() {
     { web: 'src/shared/lib/math.ts', native: 'src/engine/math.ts' },
     { web: 'src/shared/lib/wrapSvgText.ts', native: 'src/shared/lib/wrapSvgText.ts' },
     { web: 'src/shared/presentation/types.ts', native: 'src/presentation/presentationTypes.ts' },
+    { web: 'src/shared/presentation/labelRail.ts', native: 'src/presentation/labelRail.ts' },
     { web: 'src/shared/diagram/organShapes.ts', native: 'src/presentation/organShapes.ts' },
+    { web: 'src/shared/diagram/tissueShapes.ts', native: 'src/presentation/tissueShapes.ts' },
     { web: 'src/shared/assessment/types.ts', native: 'src/shared/assessment/types.ts' },
     { web: 'src/shared/assessment/verifyQuestion.ts', native: 'src/shared/assessment/verifyQuestion.ts' },
     { web: 'src/shared/assessment/verifyPattern.ts', native: 'src/shared/assessment/verifyPattern.ts' },

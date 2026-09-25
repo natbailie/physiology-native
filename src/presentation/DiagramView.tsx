@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, {
   Circle,
   ClipPath,
@@ -14,7 +15,7 @@ import Svg, {
   Text as SvgText,
   type FontStyle,
 } from 'react-native-svg';
-import type { FrameNode, GradientStop, SceneNode, StyleVars } from './types';
+import type { FrameNode, GradientStop, LabelRailNode, SceneNode, StyleVars } from './types';
 import { resolveColor, type ThemeName } from './palette';
 import {
   resolveClsValue,
@@ -22,6 +23,7 @@ import {
   type DiagramClasses,
 } from './diagramClassTypes';
 import { useAppTheme } from './theme';
+import { contentViewBox, layoutRail, RAIL_BADGE_R, RAIL_DOT_R, RAIL_NARROW_BELOW } from './labelRail';
 
 /* ------------------------------------------------------------------ */
 /*  CSS-class-aware styling (the web renders `cls` via CSS modules)    */
@@ -173,6 +175,19 @@ interface RenderCtx {
   blinded: boolean;
   /** The module's own class table; the shared one is consulted after it. */
   classes: DiagramClasses;
+  /** A rail is laid out against the frame it sits in, not against itself. */
+  viewBox: readonly [number, number, number, number];
+  /**
+   * The frame is too narrow for a rail of words, so its names become numbered badges and the key
+   * is rendered as real text under the drawing.
+   *
+   * Measured rather than queried: there is no cascade here, so the web's container query has no
+   * equivalent. Nearly every phone is under the threshold — the measurement is what makes a
+   * tablet, a landscape rotation and a large-screen device behave like the web.
+   */
+  narrow: boolean;
+  /** First badge number for this frame's rails, so two rails do not both start at 1. */
+  railOffset: Map<object, number>;
 }
 
 function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.ReactNode {
@@ -218,7 +233,7 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           strokeOpacity={node.strokeOpacity}
           strokeLinecap={ps.linecap ?? node.strokeLinecap ?? 'round'}
           strokeLinejoin={node.strokeLinejoin ?? 'round'}
-          strokeDasharray={ps.dash}
+          strokeDasharray={ps.dash ?? node.strokeDasharray}
           opacity={ps.opacity ?? node.opacity}
           markerEnd={node.markerEnd ? `url(#${node.markerEnd})` : undefined}
           clipPath={node.clipPathId ? `url(#${node.clipPathId})` : undefined}
@@ -342,6 +357,67 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
       );
     }
 
+    case 'labelRail': {
+      const { labels, badges } = layoutRail(node, ctx.viewBox);
+      const offset = ctx.railOffset.get(node) ?? 0;
+      const ls = clsStyle('leader', ctx.theme, ctx.classes, undefined);
+      const bs = clsStyle('railBadge', ctx.theme, ctx.classes, undefined);
+      const faint = resolveColor('text-faint', ctx.theme);
+
+      if (ctx.narrow) {
+        return (
+          <G key={index}>
+            {badges.map((b) => (
+              <G key={b.n}>
+                <Circle
+                  cx={b.x}
+                  cy={b.y}
+                  r={RAIL_BADGE_R}
+                  fill={resolveColor('panel', ctx.theme)}
+                  stroke={faint}
+                  strokeWidth={1}
+                />
+                <SvgText
+                  x={b.x}
+                  y={b.y + 4}
+                  fontSize={bs.fontSize ?? 12}
+                  fontWeight="700"
+                  textAnchor="middle"
+                  fill={bs.fill ?? resolveColor('text-dim', ctx.theme)}
+                >
+                  {String(b.n + offset)}
+                </SvgText>
+              </G>
+            ))}
+          </G>
+        );
+      }
+
+      return (
+        <G key={index}>
+          {labels.map((l, i) => {
+            const t = clsStyle(l.cls, ctx.theme, ctx.classes, undefined);
+            return (
+              <G key={i}>
+                <Path d={l.leader} stroke={ls.stroke ?? faint} strokeWidth={ls.strokeWidth ?? 1} fill="none" />
+                <Circle cx={l.dot[0]} cy={l.dot[1]} r={RAIL_DOT_R} fill={faint} />
+                <SvgText
+                  x={l.x}
+                  y={l.y}
+                  fontSize={t.fontSize ?? 11}
+                  fontWeight={t.fontWeight}
+                  textAnchor={l.anchor}
+                  fill={t.fill ?? resolveColor('text-dim', ctx.theme)}
+                >
+                  {l.text}
+                </SvgText>
+              </G>
+            );
+          })}
+        </G>
+      );
+    }
+
     case 'vessel':
       // Simplified: draw the static path; flow animation deferred to later
       return (
@@ -397,13 +473,48 @@ interface DiagramViewProps {
   blinded?: boolean;
 }
 
+/** Rails may be nested in a group, so the key is gathered by walking. */
+function collectRails(nodes: readonly SceneNode[], out: LabelRailNode[] = []): LabelRailNode[] {
+  for (const node of nodes) {
+    if (node.type === 'labelRail') out.push(node);
+    else if (node.type === 'group') collectRails(node.children, out);
+  }
+  return out;
+}
+
 export function DiagramView({ frame, blinded = false, classes = {} }: DiagramViewProps) {
   // The app's resolved theme, not the device's: with a light/dark toggle on the Account
   // screen, reading the OS directly would leave every diagram drawn in the other theme's ink.
   const theme: ThemeName = useAppTheme().scheme;
-  const ctx: RenderCtx = { theme, blinded, classes };
-  const [vx, vy, vw, vh] = frame.viewBox;
+
+  /* Undefined until the first layout. It starts narrow rather than wide because that is what a
+   * phone is: guessing wide would draw one frame of unreadable 8px labels on every mount. */
+  const [width, setWidth] = React.useState<number | undefined>(undefined);
+  const onLayout = React.useCallback((e: LayoutChangeEvent) => {
+    setWidth(e.nativeEvent.layout.width);
+  }, []);
+  const narrow = (width ?? 0) < RAIL_NARROW_BELOW;
+
+  /* The key is read out of the LAYOUT rather than out of `items`: a rail seats each label beside
+   * its own target and then numbers the columns, so author order is not reading order. */
+  const rails = collectRails(frame.children);
+  const railOffset = new Map<object, number>();
+  const key: { n: number; text: string }[] = [];
+  for (const rail of rails) {
+    const offset = key.length;
+    railOffset.set(rail, offset);
+    for (const entry of layoutRail(rail, frame.viewBox).key) {
+      key.push({ n: entry.n + offset, text: entry.text });
+    }
+  }
+
+  /* A rail is laid out against the frame's OWN viewBox even when the svg is drawn with the
+   * cropped one: the targets are in frame coordinates and cropping must not move them. */
+  const ctx: RenderCtx = { theme, blinded, classes, viewBox: frame.viewBox, narrow, railOffset };
+  const [vx, vy, vw, vh] = narrow ? contentViewBox(rails, frame.viewBox) : frame.viewBox;
+
   return (
+    <View onLayout={onLayout}>
     <Svg
       viewBox={`${vx} ${vy} ${vw} ${vh}`}
       accessibilityLabel={frame.ariaLabel}
@@ -476,5 +587,36 @@ export function DiagramView({ frame, blinded = false, classes = {} }: DiagramVie
       )}
       {frame.children.map((node, i) => renderNode(node, i, ctx))}
     </Svg>
+    {narrow && key.length > 0 && (
+      <View style={styles.key}>
+        {key.map((entry) => (
+          <View key={entry.n} style={styles.keyRow}>
+            <Text style={[styles.keyNum, { backgroundColor: resolveColor('text-faint', theme), color: resolveColor('panel', theme) }]}>
+              {entry.n}
+            </Text>
+            <Text style={[styles.keyText, { color: resolveColor('text-dim', theme) }]}>{entry.text}</Text>
+          </View>
+        ))}
+      </View>
+    )}
+    </View>
   );
 }
+
+/* The key is the whole point of the narrow layout: text inside the drawing is sized in user units
+ * and scales with it, so an 11-unit label lands near 8.6px on a phone. Out here it is 12px. */
+const styles = StyleSheet.create({
+  key: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 12, paddingTop: 8 },
+  keyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%', paddingVertical: 1 },
+  keyNum: {
+    minWidth: 16,
+    borderRadius: 99,
+    paddingHorizontal: 3,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 16,
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
+  keyText: { flexShrink: 1, fontSize: 12 },
+});
