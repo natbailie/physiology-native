@@ -73,3 +73,26 @@ describe('ControlRailView slider value', () => {
     expect(slider.getAttribute('data-value-now')).toBe('5000');
   });
 });
+
+describe('ToggleGroup as a view-only lens', () => {
+  it('reports the picked option and ignores a press on the one already picked', async () => {
+    const { ToggleGroup } = await import('./ControlRailView');
+    const onChange = vi.fn();
+    render(
+      <ToggleGroup
+        label="Highlight nutrient"
+        value="all"
+        options={[
+          { value: 'all', label: 'All' },
+          { value: 'b12', label: 'Vitamin B12' },
+        ]}
+        onChange={onChange}
+        accent="#7a3fb3"
+      />,
+    );
+    screen.getByText('All').click();
+    expect(onChange).not.toHaveBeenCalled();
+    screen.getByText('Vitamin B12').click();
+    expect(onChange).toHaveBeenCalledWith('b12');
+  });
+});

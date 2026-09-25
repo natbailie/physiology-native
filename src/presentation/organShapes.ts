@@ -1192,3 +1192,133 @@ export function giTractScene(placement: OrganPlacement, params: GiTractParams = 
     pylorus: placedPoint(placement, GI_DUODENUM.start),
   };
 }
+
+/* --- Bladder --------------------------------------------------------- */
+/*
+ * The bladder in coronal section, with its trigone, both ureteric orifices, and the two
+ * sphincters in series down the urethra.
+ *
+ * The one thing this organ has to do that the others do not is CHANGE SIZE. A bladder is the
+ * subject of micturition precisely because it fills, so the dome is computed from the volume
+ * rather than fixed: a full bladder rises and its walls bulge, an empty one sits flat and thick.
+ * The urine inside it is a rect clipped to the body, the way the liver's conjugated pool is.
+ *
+ * The two sphincters are drawn as collars rather than as colour alone, because their whole
+ * teaching point is that they are in SERIES and independently controlled — one smooth and
+ * autonomic at the neck, one striated and voluntary below it. A tight collar is drawn narrow and
+ * dense, a relaxed one wide and pale, so the two controls have a visible correlate each.
+ *
+ * Natural size: about 130 wide by 150 tall, the body centred on the origin, the urethra running
+ * down to y = 92.
+ */
+
+/** The dome rises and the shoulders bulge as it fills: -26 empty, -56 full. */
+function bladderBodyPath(fill: number): string {
+  const apex = -26 - fill * 30;
+  const shoulder = -2 - fill * 10;
+  return (
+    `M-50,${shoulder} C-50,${apex + 18} -28,${apex} 0,${apex} ` +
+    `C28,${apex} 50,${apex + 18} 50,${shoulder} ` +
+    `C50,22 28,42 0,42 C-28,42 -50,22 -50,${shoulder} Z`
+  );
+}
+
+export const BLADDER_TRIGONE_PATH = 'M-26,14 L26,14 L0,38 Z';
+/* Steep and short, running down the posterolateral wall to the trigone's upper corners. Drawn
+ * before the body so the dome occludes them: a ureter that stays fully visible over a full
+ * bladder reads as an antenna rather than as a tube passing behind it. */
+export const URETER_LEFT_PATH = 'M-46,-62 C-42,-34 -34,-8 -26,14';
+export const URETER_RIGHT_PATH = 'M46,-62 C42,-34 34,-8 26,14';
+export const URETHRA_PATH = 'M0,38 L0,92';
+/** Folds on the posterior wall — the detrusor reading as muscle rather than as a balloon. */
+const DETRUSOR_FOLDS = [
+  'M-38,6 C-34,-6 -24,-14 -12,-16',
+  'M-30,16 C-26,4 -16,-4 -4,-6',
+  'M38,6 C34,-6 24,-14 12,-16',
+] as const;
+
+export interface BladderParams {
+  /** 0-1 of functional capacity. Drives the dome, the wall and the urine inside it. */
+  fillLevel?: number;
+  /** 0-1 tone of the internal (smooth, autonomic) sphincter at the neck. */
+  internalTone?: number;
+  /** 0-1 tone of the external (striated, voluntary) sphincter below it. */
+  externalTone?: number;
+  /**
+   * 0-1 detrusor tone. A contracting detrusor thickens, so this rides on top of the thinning
+   * that distension causes — and it keeps that control's visible correlate, which the module's
+   * own slider sweep in `controls.test.tsx` requires of every input.
+   */
+  detrusorTone?: number;
+  colorToken?: string;
+  urineToken?: string;
+}
+
+export function bladderScene(placement: OrganPlacement, params: BladderParams = {}): OrganDrawing {
+  const token = params.colorToken ?? 'bladder';
+  const urine = params.urineToken ?? 'urine';
+  const fill = clamp01(params.fillLevel ?? 0.4);
+  const internal = clamp01(params.internalTone ?? 0.8);
+  const external = clamp01(params.externalTone ?? 0.8);
+  const detrusor = clamp01(params.detrusorTone ?? 0.3);
+  const body = bladderBodyPath(fill);
+
+  /* The urine surface, in organ coordinates. It never reaches the dome: a bladder at capacity
+   * still has wall above the fluid, and a fluid line flush with the roof reads as a solid
+   * object rather than as a container with something in it. */
+  const floor = 40;
+  const roof = -18 - fill * 26;
+  const surface = floor - (floor - roof) * fill;
+
+  /* A tight sphincter is a narrow, dense collar and a relaxed one is wide and pale, so each
+   * control changes the picture rather than only a number. */
+  const collar = (cy: number, tone: number): PathNode => ({
+    type: 'path',
+    d: `M${-7 - (1 - tone) * 5},${cy} L${7 + (1 - tone) * 5},${cy}`,
+    fill: 'none',
+    colorToken: token,
+    strokeWidth: 5 + tone * 4,
+    strokeOpacity: 0.35 + tone * 0.6,
+    strokeLinecap: 'round',
+  });
+
+  const node = placed(placement, undefined, [
+    ...tubeNodes(URETER_LEFT_PATH, urine, 9),
+    ...tubeNodes(URETER_RIGHT_PATH, urine, 9),
+    ...tubeNodes(URETHRA_PATH, token, 10),
+    opaqueUnderlay(body),
+    { type: 'path', d: body, fillGradientId: gradientId('bladder', token) },
+    // Clipped to the body, so the fluid takes the shape of whatever the dome is doing.
+    {
+      type: 'rect',
+      x: -52,
+      y: surface,
+      width: 104,
+      height: floor - surface + 2,
+      fill: urine,
+      fillOpacity: 0.5,
+      clipPathId: gradientId('bladder-fluid', token),
+    },
+    /* 0.14 is LABEL_WASH from shared/presentation/types, written out rather than imported: this
+     * file's only import is type-only, which is what lets `node --experimental-strip-types` load
+     * it directly and dump a shape to SVG in a second. A value import would end that. */
+    { type: 'path', d: BLADDER_TRIGONE_PATH, fill: token, fillOpacity: 0.18, colorToken: token, strokeWidth: 1.6, strokeOpacity: 0.85 },
+    ...DETRUSOR_FOLDS.map(
+      (d): PathNode => ({ type: 'path', d, fill: 'none', colorToken: token, strokeWidth: 1.2, strokeOpacity: 0.45 }),
+    ),
+    { type: 'circle', cx: -26, cy: 14, r: 2.6, fill: urine, fillOpacity: 0.9 },
+    { type: 'circle', cx: 26, cy: 14, r: 2.6, fill: urine, fillOpacity: 0.9 },
+    // The wall last, so nothing inside overdraws its edge. Thicker as the bladder empties.
+    { type: 'path', d: body, fill: 'none', colorToken: token, strokeWidth: 3.4 - fill * 1.2 + detrusor * 3.2, strokeLinejoin: 'round' },
+    collar(50, internal),
+    collar(70, external),
+  ]);
+
+  return {
+    node,
+    defs: [
+      bodyGradient('bladder', token, { x: -18, y: -20, r: 120 }),
+      { type: 'clipPath', id: gradientId('bladder-fluid', token), children: [{ type: 'path', d: body }] },
+    ],
+  };
+}

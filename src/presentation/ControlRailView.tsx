@@ -128,7 +128,9 @@ interface ToggleGroupProps {
   accent: string;
 }
 
-function ToggleGroup({ label, value, options, onChange, accent }: ToggleGroupProps) {
+/** Exported for the module screen's view-only lens, which is a choice of the same shape as a
+ * toggle control but writes no engine input. */
+export function ToggleGroup({ label, value, options, onChange, accent }: ToggleGroupProps) {
   const { color } = useAppTheme();
   return (
     <View style={[styles.toggleContainer, { borderBottomColor: color.panelBorder }]}>

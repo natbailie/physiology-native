@@ -276,6 +276,11 @@ function renderNode(node: SceneNode, index: number, ctx: RenderCtx): React.React
           strokeWidth={node.strokeWidth ?? rs.strokeWidth}
           strokeDasharray={rs.dash}
           opacity={rs.opacity ?? node.opacity}
+          /* A rect can be clipped, and this did not honour it. `PathNode` did, so the fault was
+           * invisible everywhere except the two places a clipped RECT is how a variable fill is
+           * drawn: liverPhysiology's conjugated pool, which has been a full-width bar on the
+           * phone, and the urine inside the bladder. */
+          clipPath={node.clipPathId ? `url(#${node.clipPathId})` : undefined}
         />
       );
     }
