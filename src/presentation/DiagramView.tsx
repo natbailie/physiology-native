@@ -76,6 +76,13 @@ const SHARED_CLASSES: DiagramClasses = {
   alarm: { fill: 'danger', fontSize: 12 },
   verdict: { fill: 'text', fontSize: 9, fontWeight: '600' },
 
+  /* cardiorenal's dashed urine stream. It is the one organ-adjacent class a module still owns,
+   * and it had no value here at all — so the stream drew as an unstyled path on every phone
+   * while the web animated it. Transcribed from that module's Diagram.module.css; the animation
+   * has no equivalent and needs none, which leaves a dashed line that does not move rather than
+   * a line that is not there. */
+  urineFlow: { stroke: 'urine', strokeWidth: 2.5, dash: '2 6', fill: 'none', linecap: 'round' },
+
   /* --- the shared anatomy sheet --- */
   /* Its animation classes have no equivalent here and need none: a group with no spec is drawn
    * unstyled, which is a heart that does not beat rather than a heart that does not render. The
