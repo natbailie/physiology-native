@@ -4,6 +4,8 @@ import { ActivityIndicator, Pressable, StyleSheet, ScrollView, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DiagramView } from '../../src/presentation/DiagramView';
 import { ControlDock } from '../../src/presentation/ControlDock';
+import { ToggleGroup } from '../../src/presentation/ControlRailView';
+import { lookupColor } from '../../src/presentation/palette';
 import { ReadoutGridView } from '../../src/presentation/ReadoutGridView';
 import { TrendsView } from '../../src/presentation/TrendsView';
 import { ScenarioBar } from '../../src/presentation/ScenarioBar';
@@ -115,7 +117,7 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
    *  patient rather than applying them in an effect a frame later. */
   initialBedId: string | null;
 }) {
-  const { color } = useAppTheme();
+  const { color, scheme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const hasCases = cases.length > 0;
   /** The collapsed dock's measured height, so the scroll below can clear it. */
@@ -165,6 +167,11 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
   );
 
    
+  /* A view-only lens (which nutrient the digestion map traces) is screen state, never an input:
+   * it changes what the diagram emphasises and nothing about the model, so it stays out of
+   * presets and question setups. Undefined means the presentation's own `lens.initial`. */
+  const [lens, setLens] = useState<string | undefined>(undefined);
+
   const presentation = useMemo(
     () =>
       adapter.build({
@@ -173,10 +180,13 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
         inputs,
         history,
         baselineHistory: baseline.history,
-         
+        lens,
       } as any),
-    [snapshot, inputs, history, baseline.history, adapter],
+    [snapshot, inputs, history, baseline.history, adapter, lens],
   );
+  const lensSpec = presentation.lens;
+  const lensValue = lens ?? lensSpec?.initial;
+  const lensToken = lensSpec?.options.find((option) => option.value === lensValue)?.colorToken;
 
    
   const showCtx = useMemo(() => ({ state: snapshot.state, derived: snapshot.derived, inputs }) as any, [snapshot, inputs]);
@@ -403,6 +413,15 @@ function EngineModuleScreen<TState, TInputs, TDerived, THistoryPoint>({
               actions={actions}
               accent={accent}
             />
+            {lensSpec && lensValue !== undefined && (
+              <ToggleGroup
+                label={lensSpec.label}
+                value={lensValue}
+                options={lensSpec.options}
+                onChange={setLens}
+                accent={(lensToken ? lookupColor(lensToken, scheme) : undefined) ?? accent}
+              />
+            )}
             {presentation.diagram.map((frame, i) => (
               <DiagramView
                 key={frame.key ?? i}
