@@ -1,8 +1,23 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FALLBACK_PACKAGES, PLAN_FEATURES, PLAN_NAME, type PlanPackage } from '../src/billing/config';
+import {
+  AUTO_RENEW_DISCLOSURE,
+  FALLBACK_PACKAGES,
+  PLAN_FEATURES,
+  PLAN_NAME,
+  type PlanPackage,
+} from '../src/billing/config';
 import { confirmSubscription } from '../src/billing/useEntitlement';
 import { redeemLicence } from '../src/billing/licence';
 import {
@@ -17,6 +32,24 @@ import { useAuth } from '../src/auth/AuthContext';
 import { isSupabaseConfigured } from '../src/lib/supabase';
 import { KeyboardAwareScroll } from '../src/presentation/KeyboardAwareScroll';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../src/presentation/theme';
+
+/**
+ * The store-billing half of the pre-purchase disclosure. App Store Review Guideline 3.1.2 wants
+ * the renewal terms, where the charge lands and how to cancel stated before the purchase button,
+ * with working links to the Terms (EULA) and the privacy policy; Google Play's subscription policy
+ * asks the same. The price-and-renewal sentence itself is `AUTO_RENEW_DISCLOSURE`, shared with the
+ * website so the two cannot describe the contract differently.
+ */
+const STORE_BILLING =
+  Platform.OS === 'ios'
+    ? 'Payment is charged to your Apple ID at confirmation of purchase. The subscription renews automatically unless it is cancelled at least 24 hours before the end of the current period, and your account is charged for the renewal within the 24 hours before that. Manage or cancel in Settings › your name › Subscriptions.'
+    : 'Payment is charged to your Google Play account at confirmation of purchase. The subscription renews automatically unless it is cancelled before the end of the current period. Manage or cancel in Google Play › Payments & subscriptions › Subscriptions.';
+
+/** An error is said in words as well as in red, and announced — VoiceOver does not read text that
+ * appears under a button the learner is still focused on. */
+function announce(text: string, error: boolean) {
+  AccessibilityInfo.announceForAccessibility(error ? `Error: ${text}` : text);
+}
 
 /**
  * What full access costs, how to buy it, and how to redeem an institutional seat.
@@ -35,6 +68,7 @@ export default function PricingScreen() {
   const insets = useSafeAreaInsets();
   const entitlement = useNativeEntitlement();
   const { user } = useAuth();
+  const router = useRouter();
 
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -83,6 +117,7 @@ export default function PricingScreen() {
     if ('cancelled' in outcome) return;
     if (!outcome.ok) {
       setBuyMessage(outcome.message);
+      announce(outcome.message, true);
       return;
     }
 
@@ -99,9 +134,9 @@ export default function PricingScreen() {
     const restored = await restorePurchases(user.id);
     setBuying(false);
     invalidateStoreEntitlement();
-    setBuyMessage(
-      restored ? null : 'No previous purchase was found on this account.',
-    );
+    const text = restored ? null : 'No previous purchase was found on this account.';
+    setBuyMessage(text);
+    announce(text ?? 'Purchases restored.', text !== null);
   };
 
   const redeem = async () => {
@@ -110,7 +145,9 @@ export default function PricingScreen() {
     const result = await redeemLicence(code);
     setBusy(false);
     setRedeemed(result.ok);
-    setMessage(result.ok ? 'Redeemed — full access is on this account.' : result.message);
+    const text = result.ok ? 'Redeemed — full access is on this account.' : result.message;
+    setMessage(text);
+    announce(text, !result.ok);
     if (result.ok) setCode('');
   };
 
@@ -125,7 +162,7 @@ export default function PricingScreen() {
       <Stack.Screen options={{ title: 'Full access' }} />
 
       <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-        <Text style={[styles.heading, { color: color.text }]}>{PLAN_NAME}</Text>
+        <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>{PLAN_NAME}</Text>
         {active ? (
           <Text style={[styles.active, { color: color.ok }]}>
             Active
@@ -145,7 +182,7 @@ export default function PricingScreen() {
 
       {!active && (
         <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-          <Text style={[styles.heading, { color: color.text }]}>Price</Text>
+          <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>Price</Text>
 
           {loadingOffer ? (
             <ActivityIndicator color={color.textDim} style={styles.spinner} />
@@ -158,7 +195,7 @@ export default function PricingScreen() {
                   onPress={() => setSelectedId(pkg.id)}
                   disabled={!canBuy}
                   accessibilityRole={canBuy ? 'radio' : 'text'}
-                  accessibilityState={{ selected }}
+                  accessibilityState={canBuy ? { checked: selected } : undefined}
                   accessibilityLabel={`${pkg.label}, ${pkg.price} per ${pkg.period}`}
                   style={({ pressed }) => [
                     styles.priceRow,
@@ -178,37 +215,83 @@ export default function PricingScreen() {
             })
           )}
 
+          {/* Before the button, and whether or not the button is showing: the terms of the
+              subscription are shown wherever its price is. */}
+          {!loadingOffer && (
+            <View style={styles.disclosure}>
+              <Text style={[styles.footnote, { color: color.textDim }]}>
+                {(() => {
+                  const chosen = shown.find((pkg) => pkg.id === selectedId) ?? shown[0];
+                  return chosen ? `${PLAN_NAME}: ${chosen.price} per ${chosen.period}. ` : '';
+                })()}
+                {AUTO_RENEW_DISCLOSURE}
+              </Text>
+              <Text style={[styles.footnote, { color: color.textDim }]}>{STORE_BILLING}</Text>
+              <View style={styles.legalLinks}>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => router.push('/legal/terms')}
+                  style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.legalLinkText, { color: color.brand }]}>Terms of use</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => router.push('/legal/privacy')}
+                  style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.legalLinkText, { color: color.brand }]}>Privacy policy</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => router.push('/legal/refunds')}
+                  style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.legalLinkText, { color: color.brand }]}>Refunds</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {buyMessage && (
-            <Text style={[styles.message, { color: color.danger }]}>{buyMessage}</Text>
+            <Text accessibilityLiveRegion="polite" style={[styles.message, { color: color.danger }]}>
+              Error: {buyMessage}
+            </Text>
           )}
 
           {canBuy && (
-            <>
-              <Pressable
-                onPress={() => void buy()}
-                disabled={buying}
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.primary,
-                  { backgroundColor: color.brand },
-                  buying && styles.primaryDisabled,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.primaryText, { color: color.onSolid }]}>
-                  {buying ? 'One moment…' : 'Subscribe'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void restore()}
-                disabled={buying}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.restore, pressed && styles.pressed]}
-              >
-                <Text style={[styles.restoreText, { color: color.textDim }]}>Restore purchases</Text>
-              </Pressable>
-            </>
+            <Pressable
+              onPress={() => void buy()}
+              disabled={buying}
+              accessibilityState={{ disabled: buying }}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.primary,
+                { backgroundColor: color.brand },
+                buying && styles.primaryDisabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.primaryText, { color: color.onSolid }]}>
+                {buying ? 'One moment…' : 'Subscribe — renews automatically'}
+              </Text>
+            </Pressable>
           )}
+
+          {/* Always reachable, not only when an offering loaded: a learner reinstalling on a
+              flaky connection is exactly who needs it (Guideline 3.1.1). Purchases follow the
+              account, so signed out it leads to sign-in first. */}
+          <Pressable
+            onPress={() => (user ? void restore() : router.push('/account'))}
+            disabled={buying}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: buying }}
+            style={({ pressed }) => [styles.restore, pressed && styles.pressed]}
+          >
+            <Text style={[styles.restoreText, { color: color.textDim }]}>
+              {user ? 'Restore purchases' : 'Sign in to restore purchases'}
+            </Text>
+          </Pressable>
 
           {!user && (
             <Text style={[styles.footnote, { color: color.textFaint }]}>
@@ -228,7 +311,7 @@ export default function PricingScreen() {
 
       {isSupabaseConfigured && (
         <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-          <Text style={[styles.heading, { color: color.text }]}>Institutional code</Text>
+          <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>Institutional code</Text>
           <Text style={[styles.body, { color: color.textDim }]}>
             If your school has bought seats, redeem your code here.
           </Text>
@@ -244,16 +327,25 @@ export default function PricingScreen() {
             // and typed straight back in; `normaliseLicenceCode` strips whatever punctuation the
             // learner adds to make it readable.
             spellCheck={false}
+            accessibilityLabel="Institutional code"
+            accessibilityHint="The code your school or university gave you"
             returnKeyType="go"
             onSubmitEditing={() => !(busy || code.trim() === '' || !user) && void redeem()}
             style={[styles.input, { borderColor: color.panelBorder, color: color.text }]}
           />
           {message && (
-            <Text style={[styles.message, { color: redeemed ? color.ok : color.danger }]}>{message}</Text>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={[styles.message, { color: redeemed ? color.ok : color.danger }]}
+            >
+              {redeemed ? '' : 'Error: '}
+              {message}
+            </Text>
           )}
           <Pressable
             onPress={() => void redeem()}
             disabled={busy || code.trim() === '' || !user}
+            accessibilityState={{ disabled: busy || code.trim() === '' || !user }}
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.primary,
@@ -294,7 +386,8 @@ const styles = StyleSheet.create({
   price: { fontSize: FONT.lg, fontWeight: '700' },
   period: { fontSize: FONT.xs, fontWeight: '400' },
   note: { fontSize: FONT.micro, fontWeight: '700' },
-  footnote: { fontSize: FONT.micro, lineHeight: FONT.micro * LINE.prose, marginTop: SPACE.xs },
+  // `xs`, not `micro`: this now carries the subscription terms, which have to be readable.
+  footnote: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose, marginTop: SPACE.xs },
   input: {
     borderWidth: 1,
     borderRadius: RADIUS.sm,
@@ -316,4 +409,8 @@ const styles = StyleSheet.create({
   restore: { minHeight: TAP, alignItems: 'center', justifyContent: 'center' },
   restoreText: { fontSize: FONT.xs, fontWeight: '600' },
   pressed: { opacity: 0.6 },
+  disclosure: { gap: SPACE.sm, marginTop: SPACE.xs },
+  legalLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: SPACE.lg },
+  legalLink: { minHeight: TAP, justifyContent: 'center' },
+  legalLinkText: { fontSize: FONT.xs, fontWeight: '700', textDecorationLine: 'underline' },
 });

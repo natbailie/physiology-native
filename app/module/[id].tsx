@@ -609,7 +609,7 @@ export default function ModuleScreen() {
             own props onto the child, and its undefined `style` clobbers one set here. Same shape
             as the cards on the home screen. */}
         <Link href="/pricing" asChild>
-          <Pressable>
+          <Pressable accessibilityRole="button">
             {({ pressed }) => (
               <View style={[styles.lockedButton, { backgroundColor: accent }, pressed && styles.optionPressed]}>
                 <Text style={[styles.lockedButtonText, { color: color.onSolid }]}>See full access</Text>

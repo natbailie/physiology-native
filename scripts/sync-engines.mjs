@@ -222,6 +222,13 @@ function buildManifest() {
     { web: 'src/shared/cases/unclaimed.ts', native: 'src/shared/cases/unclaimed.ts' },
     { web: 'src/home/moduleCases.ts', native: 'src/home/moduleCases.ts' },
     { web: 'src/home/useRound.ts', native: 'src/home/useRound.ts' },
+    // Legal documents, business details and the review data layer: plain data and one Supabase
+    // module, written once so the phone cannot say something different from the website about the
+    // same contract. Rendered by `app/legal/[doc].tsx` and `app/reviews.tsx`.
+    ...['types', 'business', 'processors', 'privacy', 'terms', 'cookies', 'refunds', 'businessDetails', 'accessibility', 'index'].map(
+      (name) => ({ web: `src/shared/legal/${name}.ts`, native: `src/shared/legal/${name}.ts` }),
+    ),
+    { web: 'src/shared/reviews/reviews.ts', native: 'src/shared/reviews/reviews.ts' },
   ];
 
   for (const module of modulesOf(WEB_ROOT)) {
@@ -273,6 +280,8 @@ const SYNCED_ONLY_DIRS = new Set([
   'src/shared/glossary',
   'src/medications',
   'src/reference',
+  'src/shared/legal',
+  'src/shared/reviews',
 ]);
 
 /** Native files sitting in a synced directory with no web source — a rename or deletion upstream. */

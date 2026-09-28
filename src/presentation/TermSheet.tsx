@@ -70,7 +70,7 @@ export function TermSheetProvider({ children }: { children: React.ReactNode }) {
       >
         {/* The scrim is the dismiss target, which is what a learner reaches for first. The sheet
             itself swallows the press so a tap on the prose does not close what it is reading. */}
-        <Pressable style={styles.scrim} onPress={close} accessibilityLabel="Close definition">
+        <Pressable style={styles.scrim} onPress={close} accessibilityRole="button" accessibilityLabel="Close definition">
           <Pressable
             style={[
               styles.sheet,

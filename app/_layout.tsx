@@ -6,7 +6,6 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth/AuthContext';
-import { useExamAttributes } from '../src/purchases/useExamAttributes';
 import { TermSheetProvider } from '../src/presentation/TermSheet';
 import { DURATION, useAppTheme } from '../src/presentation/theme';
 
@@ -24,9 +23,6 @@ import { DURATION, useAppTheme } from '../src/presentation/theme';
  */
 function RootNavigator() {
   const { isDark, color } = useAppTheme();
-  // Inside AuthProvider, mounted for the life of the app: RevenueCat's copy of the learner's
-  // exam follows sign-in and every later change to it.
-  useExamAttributes();
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />

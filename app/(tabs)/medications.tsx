@@ -25,7 +25,7 @@ function ClassRow({ drugClass }: { drugClass: DrugClass }) {
       <Text style={[styles.mechanism, { color: color.textDim }]}>{drugClass.mechanism}</Text>
       {target && (
         <Link href={`/module/${target.id}`} asChild>
-          <Pressable>
+          <Pressable accessibilityRole="link">
             {({ pressed }) => (
               <View style={[styles.link, pressed && styles.pressed]}>
                 <Text style={[styles.linkText, { color: color.brand }]}>
@@ -83,6 +83,12 @@ export default function MedicationsScreen() {
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}
     >
       <Stack.Screen options={{ title: 'Medications' }} />
+      {/* On this screen, not only on Home: a drug list is exactly what somebody might glance at
+          on a ward, and it describes mechanisms for learning, not doses or prescribing. */}
+      <Text style={[styles.disclaimer, { color: color.textDim }]}>
+        For learning pharmacology mechanisms only — not prescribing guidance. In practice, use the BNF,
+        local guidelines and senior advice.
+      </Text>
       {FAMILIES.map((family) => (
         <FamilySection key={family.id} family={family} />
       ))}
@@ -114,4 +120,5 @@ const styles = StyleSheet.create({
   link: { minHeight: TAP, justifyContent: 'center' },
   linkText: { fontSize: FONT.xs, fontWeight: '700' },
   pressed: { opacity: 0.6 },
+  disclaimer: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose },
 });

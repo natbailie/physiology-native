@@ -56,6 +56,20 @@ function toPoints(values: number[], domainMin: number, domainMax: number, capaci
 /*  Sparkline                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The trace in words for VoiceOver and TalkBack: the current value and which way it is going.
+ * The drawing alone told a screen-reader user nothing — not even the number, which the web prints
+ * in the chart header and this card does not.
+ */
+function describeTrace(label: string, unit: string | undefined, values: readonly number[], range: number): string {
+  const current = values.at(-1);
+  if (current === undefined) return `${label} trace, no data yet`;
+  const first = values[0] ?? current;
+  const delta = current - first;
+  const direction = Math.abs(delta) < range * 0.02 ? 'steady' : delta > 0 ? 'rising' : 'falling';
+  return `${label} trace: now ${current.toFixed(0)}${unit ? ` ${unit}` : ''}, ${direction}`;
+}
+
 interface SparklineProps<History> {
   spec: SparklineSpec<History>;
   history: readonly History[];
@@ -79,7 +93,12 @@ function Sparkline<History>({ spec, history, baselineHistory, capacity }: Sparkl
     : resolveColor('baseline', theme);
 
   return (
-    <View style={[styles.card, { backgroundColor: chrome.card, borderColor: chrome.border }]}>
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={describeTrace(spec.label, spec.unit, values, spec.domainMax - spec.domainMin || 1)}
+      style={[styles.card, { backgroundColor: chrome.card, borderColor: chrome.border }]}
+    >
       <Text style={[styles.chartTitle, { color: chrome.title }]}>{spec.label}{spec.unit ? ` (${spec.unit})` : ''}</Text>
       {/* The viewBox keeps every coordinate above in its own 220x90 space; only the box the SVG
           is painted into changes. The plot used to be laid out at a literal 220pt, so on a 402pt
@@ -132,7 +151,12 @@ function OdCurve<Derived>({ spec, derived }: OdCurveProps<Derived>) {
   const color = resolveColor(spec.colorToken, theme);
 
   return (
-    <View style={[styles.card, { backgroundColor: chrome.card, borderColor: chrome.border }]}>
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`${spec.yLabel} against ${spec.xLabel} curve; current point ${spec.xLabel} ${spec.currentX(ctx).toFixed(0)}, ${spec.yLabel} ${spec.currentY(ctx).toFixed(0)}`}
+      style={[styles.card, { backgroundColor: chrome.card, borderColor: chrome.border }]}
+    >
       {/* The web titles these the same way, from the spec rather than a constant: an od-curve
           is not always the oxygen curve (muscleContraction plots length-tension and
           force-velocity through the same spec). */}

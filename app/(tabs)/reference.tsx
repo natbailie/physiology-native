@@ -67,7 +67,7 @@ function FormulaCard({ formula }: { formula: FormulaDefinition }) {
 
       {target && (
         <Link href={`/module/${target.id}`} asChild>
-          <Pressable>
+          <Pressable accessibilityRole="link">
             {({ pressed }) => (
               <View style={[styles.link, pressed && styles.pressed]}>
                 <Text style={[styles.linkText, { color: color.brand }]}>
@@ -96,9 +96,14 @@ export default function ReferenceScreen() {
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}
     >
       <Stack.Screen options={{ title: 'Formula Reference' }} />
+      <Text style={[styles.disclaimer, { color: color.textDim }]}>
+        For learning and exam revision — not for calculating doses or making clinical decisions.
+      </Text>
       {domains.map((domain) => (
         <View key={domain} style={styles.domain}>
-          <Text style={[styles.domainTitle, { color: color.text }]}>{domain}</Text>
+          <Text accessibilityRole="header" style={[styles.domainTitle, { color: color.text }]}>
+            {domain}
+          </Text>
           {FORMULAS.filter((f) => f.domain === domain).map((f) => (
             <FormulaCard key={f.id} formula={f} />
           ))}
@@ -113,6 +118,7 @@ const styles = StyleSheet.create({
   content: { padding: SPACE.xl, gap: SPACE.xxl },
   domain: { gap: SPACE.md },
   domainTitle: { fontSize: FONT.lg, fontWeight: '700', letterSpacing: TRACKING_TIGHT },
+  disclaimer: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose },
   card: { borderWidth: 1, borderRadius: RADIUS.md, padding: SPACE.xl, gap: SPACE.md },
   name: { fontSize: FONT.base, fontWeight: '700' },
   formula: { fontSize: FONT.xs, fontFamily: 'Menlo' },

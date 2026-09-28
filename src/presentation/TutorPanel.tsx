@@ -148,11 +148,17 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
                 {error && <Text style={[styles.error, { color: color.danger }]}>{error}</Text>}
               </ScrollView>
 
+              {/* Said before the learner presses Send, like the web: what leaves the phone, and
+                  that the answer can be wrong. */}
+              <Text style={[styles.disclosure, { color: color.textDim, borderTopColor: color.panelBorder }]}>
+                Answers are AI-generated and can be wrong. Your question, a summary of topics you find
+                difficult and the readings on screen are sent to Mistral AI or Google to answer it — not
+                your name or email. Don’t include patient details.
+              </Text>
               <View
                 style={[
                   styles.composer,
                   {
-                    borderTopColor: color.panelBorder,
                     /* The home-indicator inset only exists while the composer is at the bottom of
                        the screen. With the keyboard up the keyboard is there instead, and keeping
                        it added a finger's width of dead grey above the keys. */
@@ -165,6 +171,8 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
                   onChangeText={setDraft}
                   placeholder="Ask a question"
                   placeholderTextColor={color.textFaint}
+                  accessibilityLabel="Your question for the tutor"
+                  returnKeyType="send"
                   style={[styles.input, { borderColor: color.panelBorder, color: color.text }]}
                   multiline
                   onSubmitEditing={submit}
@@ -172,6 +180,9 @@ export function TutorPanel({ moduleId, accent }: { moduleId?: string; accent: st
                 <Pressable
                   onPress={submit}
                   disabled={draft.trim() === '' || status !== 'idle'}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send question"
+                  accessibilityState={{ disabled: draft.trim() === '' || status !== 'idle' }}
                   style={({ pressed }) => [
                     styles.send,
                     { backgroundColor: accent },
@@ -220,13 +231,19 @@ const styles = StyleSheet.create({
   error: { fontSize: FONT.xs },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACE.xxxl },
   emptyText: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose, textAlign: 'center' },
+  disclosure: {
+    fontSize: FONT.xs,
+    lineHeight: FONT.xs * LINE.prose,
+    paddingHorizontal: SPACE.lg,
+    paddingTop: SPACE.md,
+    borderTopWidth: 1,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: SPACE.md,
     paddingHorizontal: SPACE.lg,
-    paddingTop: SPACE.lg,
-    borderTopWidth: 1,
+    paddingTop: SPACE.md,
   },
   input: {
     flex: 1,
