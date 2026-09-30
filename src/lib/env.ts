@@ -28,7 +28,9 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const revenueCatApiKey =
   (Platform.OS === 'ios'
     ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
-    : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY) ??
+    : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY) ||
+  // `||`, not `??`: .env.example lists the platform keys as empty assignments, which load as ""
+  // and would otherwise shadow the Test Store key below.
   process.env.EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY;
 
 /**

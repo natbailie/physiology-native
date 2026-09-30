@@ -107,7 +107,7 @@ export function ScenarioBar({ presets, activePreset, onApplyPreset, actions, acc
                 ]}
               >
                 <Text
-                  numberOfLines={1}
+                  numberOfLines={2}
                   style={[styles.actionText, { color: washed ? tint : color.onSolid }]}
                 >
                   {action.label}
@@ -132,17 +132,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipText: { fontSize: FONT.xs, fontWeight: '600' },
-  actionRow: { flexDirection: 'row', gap: SPACE.md },
+  // Wraps onto a second row rather than squeezing four buttons into one: at ~54pt of text width a
+  // label like "Adrenaline" would truncate. Each button is at least a third of the row.
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.md },
   actionBtn: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
     minHeight: TAP,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACE.lg,
+    paddingHorizontal: SPACE.md,
+    paddingVertical: SPACE.xs,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
   },
-  actionText: { fontSize: FONT.sm, fontWeight: '700' },
+  actionText: { fontSize: FONT.sm, fontWeight: '700', textAlign: 'center' },
   pressed: { opacity: 0.6 },
   locked: { opacity: 0.4 },
 });

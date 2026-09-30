@@ -106,7 +106,7 @@ export default function PricingScreen() {
   const canBuy = Boolean(user) && offered !== null && !active;
 
   const buy = async () => {
-    const chosen = offered?.find((pkg) => pkg.id === selectedId);
+    const chosen = offered?.find((pkg) => pkg.id === selectedId) ?? offered?.[0];
     if (!user || !chosen) return;
 
     setBuying(true);
@@ -188,7 +188,10 @@ export default function PricingScreen() {
             <ActivityIndicator color={color.textDim} style={styles.spinner} />
           ) : (
             shown.map((pkg) => {
-              const selected = canBuy && pkg.id === selectedId;
+              // Falls back to the first package when the preferred one is not in the offering, so
+              // the highlighted row is always the one Subscribe will buy.
+              const effectiveId = shown.some((p) => p.id === selectedId) ? selectedId : shown[0]?.id;
+              const selected = canBuy && pkg.id === effectiveId;
               return (
                 <Pressable
                   key={pkg.id}
@@ -204,12 +207,16 @@ export default function PricingScreen() {
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={[styles.body, { color: color.textDim }]}>{pkg.label}</Text>
-                  <Text style={[styles.price, { color: color.text }]}>
-                    {pkg.price}
-                    <Text style={[styles.period, { color: color.textFaint }]}> / {pkg.period}</Text>
-                    {pkg.note ? <Text style={[styles.note, { color: color.ok }]}>  {pkg.note}</Text> : null}
-                  </Text>
+                  <View style={styles.priceLine}>
+                    <Text style={[styles.body, { color: color.textDim }]}>{pkg.label}</Text>
+                    <Text style={[styles.price, { color: color.text }]}>
+                      {pkg.price}
+                      <Text style={[styles.period, { color: color.textFaint }]}> / {pkg.period}</Text>
+                    </Text>
+                  </View>
+                  {/* On its own line: inline it was wider than the row on any phone and spilled
+                      past the box. */}
+                  {pkg.note ? <Text style={[styles.note, { color: color.ok }]}>{pkg.note}</Text> : null}
                 </Pressable>
               );
             })
@@ -373,7 +380,8 @@ const styles = StyleSheet.create({
   feature: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose },
   active: { fontSize: FONT.sm, fontWeight: '700' },
   spinner: { alignSelf: 'flex-start' },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  priceRow: { gap: SPACE.xs },
+  priceLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACE.md },
   // Only a selectable row gets a box round it; with nothing to buy the prices stay plain text.
   priceRowSelectable: {
     borderWidth: 1,
@@ -381,7 +389,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE.lg,
     paddingVertical: SPACE.md,
     minHeight: TAP,
-    alignItems: 'center',
+    justifyContent: 'center',
   },
   price: { fontSize: FONT.lg, fontWeight: '700' },
   period: { fontSize: FONT.xs, fontWeight: '400' },

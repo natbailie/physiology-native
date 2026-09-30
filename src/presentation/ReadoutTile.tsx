@@ -97,7 +97,8 @@ const styles = StyleSheet.create({
   tileLabel: { flexShrink: 1, fontSize: FONT.micro, letterSpacing: 0.5 },
   // Nudged down to sit on the label's cap height rather than above it.
   labelHint: { marginTop: 1 },
-  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: SPACE.xs },
+  // Wraps so a long unit ("mL/100g/min") drops under the numeral rather than clipping at the tile edge.
+  valueRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: SPACE.xs },
   tileValue: { fontSize: FONT.xl, fontWeight: '700' },
   tileUnit: { fontSize: FONT.xs },
   tileSecondary: { fontSize: FONT.micro, marginTop: SPACE.xs },

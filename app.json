@@ -7,7 +7,7 @@
     "scheme": "physiology",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.bentara.physiology",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

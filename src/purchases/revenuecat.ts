@@ -40,9 +40,22 @@ export const isRevenueCatConfigured = Boolean(apiKey);
 /** The user the SDK was configured for, so a second sign-in switches rather than re-configures. */
 let configuredFor: string | null = null;
 
-async function sdk(appUserId: string): Promise<void> {
-  if (configuredFor === appUserId) return;
+/** The setup in flight, so concurrent callers (the entitlement hook and the pricing screen mount
+ * together) share one configure/logIn rather than each racing to call `configure`. */
+let pending: { userId: string; promise: Promise<void> } | null = null;
 
+function sdk(appUserId: string): Promise<void> {
+  if (configuredFor === appUserId) return Promise.resolve();
+  if (pending?.userId === appUserId) return pending.promise;
+
+  const promise = setUpSdk(appUserId).finally(() => {
+    if (pending?.promise === promise) pending = null;
+  });
+  pending = { userId: appUserId, promise };
+  return promise;
+}
+
+async function setUpSdk(appUserId: string): Promise<void> {
   if (await Purchases.isConfigured()) {
     // Configuring twice is not supported; a learner who signs out and back in as someone else
     // needs their purchases to follow the new account.
@@ -132,7 +145,7 @@ export async function purchasePackage(
       ok: false,
       message:
         (error as Error)?.message ??
-        'The payment could not be completed. Nothing has been charged — try again in a moment.',
+        'The payment could not be completed. Nothing has been charged. Try again in a moment.',
     };
   }
 }

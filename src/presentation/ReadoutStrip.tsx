@@ -55,7 +55,7 @@ export function ReadoutStrip<State, Derived, Inputs>({
         return (
           <Pressable
             key={spec.label}
-            style={styles.cell}
+            style={[styles.cell, spec.wide && styles.cellWide]}
             onPress={explainable ? () => terms.open(spec.label, moduleId) : undefined}
             disabled={!explainable}
             accessibilityRole={explainable ? 'button' : undefined}
@@ -68,7 +68,9 @@ export function ReadoutStrip<State, Derived, Inputs>({
               {spec.label}
             </Text>
             <View style={styles.valueRow}>
-              <Text numberOfLines={1} style={[styles.value, { color: accent ?? color.text }]}>
+              {/* A headline readout can be a phrase ("normal steroidogenesis"), so it gets a wider
+                  cell and a second line rather than an ellipsis. */}
+              <Text numberOfLines={spec.wide ? 2 : 1} style={[styles.value, { color: accent ?? color.text }]}>
                 {withheld || !ctx ? '—' : spec.value(ctx)}
               </Text>
               {spec.unit && !withheld && (
@@ -91,8 +93,10 @@ const styles = StyleSheet.create({
     gap: SPACE.lg,
   },
   cell: { flex: 1, gap: 1 },
+  cellWide: { flex: 1.6 },
   label: { fontSize: FONT.micro, textTransform: 'uppercase', letterSpacing: 0.5 },
-  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  // Wraps so a long unit drops under its value instead of running into the next cell.
+  valueRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 3 },
   value: { fontSize: FONT.lg, fontWeight: '700' },
   unit: { fontSize: FONT.micro },
 });
