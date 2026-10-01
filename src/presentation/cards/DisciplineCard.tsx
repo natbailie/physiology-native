@@ -6,7 +6,8 @@
  * here, a Pressable that does nothing still announces itself to VoiceOver as a button.
  * The roadmap is part of what the picker is saying, so the tile stays visible either way.
  */
-import { StyleSheet, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import type { DisciplineDescriptor } from '../../home/moduleRegistry';
 import { accentFrom, FONT, LINE, TRACKING_TIGHT, useAppTheme } from '../theme';
 import { Badge } from './Badge';
@@ -34,8 +35,11 @@ export function DisciplineCard({ discipline, countText, onPress }: DisciplineCar
     >
       <CardNameRow>
         <Text style={[styles.name, { color: color.text }]}>{discipline.name}</Text>
-        {!unavailable && countText && (
-          <Text style={[styles.count, { color: color.textDim }]}>{countText}</Text>
+        {!unavailable && (
+          <View style={styles.right}>
+            {countText && <Text style={[styles.count, { color: color.textDim }]}>{countText}</Text>}
+            <Ionicons name="chevron-forward" size={16} color={color.textFaint} />
+          </View>
         )}
       </CardNameRow>
       <Text style={[styles.blurb, { color: color.textDim }]}>{discipline.blurb}</Text>
@@ -45,6 +49,7 @@ export function DisciplineCard({ discipline, countText, onPress }: DisciplineCar
 }
 
 const styles = StyleSheet.create({
+  right: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   name: { fontSize: FONT.lg, fontWeight: '700', letterSpacing: TRACKING_TIGHT, flexShrink: 1 },
   count: { fontSize: FONT.micro, fontWeight: '700', letterSpacing: 0.4 },
   blurb: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.snug },

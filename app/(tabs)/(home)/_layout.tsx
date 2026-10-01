@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { Logo } from '../../../src/presentation/ui/Logo';
 import { DURATION, useAppTheme } from '../../../src/presentation/theme';
 
 /**
@@ -22,7 +23,7 @@ export default function HomeStackLayout() {
         animationDuration: DURATION.base,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Physiology' }} />
+      <Stack.Screen name="index" options={{ title: 'Physiology', headerTitle: () => <Logo size={28} withName /> }} />
       <Stack.Screen name="discipline/[id]" />
       <Stack.Screen name="theme/[id]" />
     </Stack>

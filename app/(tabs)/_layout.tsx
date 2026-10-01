@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useOnboardingStatus } from '../../src/onboarding/onboardingStore';
+import { TutorPanel } from '../../src/presentation/TutorPanel';
 import { useAppTheme } from '../../src/presentation/theme';
 
 /**
@@ -15,13 +17,21 @@ import { useAppTheme } from '../../src/presentation/theme';
  */
 export default function TabsLayout() {
   const { color } = useAppTheme();
+  const onboarding = useOnboardingStatus();
+
+  // First launch on this device: the walkthrough comes before the catalogue. Waiting for the flag
+  // to load renders nothing rather than flashing the tabs and pulling them away.
+  if (onboarding === 'loading') return null;
+  if (onboarding === 'needed') return <Redirect href="/onboarding" />;
+
   return (
+    <>
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: color.panel },
         headerTintColor: color.text,
         tabBarStyle: { backgroundColor: color.panel, borderTopColor: color.panelBorder },
-        tabBarActiveTintColor: color.brand,
+        tabBarActiveTintColor: color.select,
         tabBarInactiveTintColor: color.textFaint,
         sceneStyle: { backgroundColor: color.bg },
       }}
@@ -63,5 +73,8 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    {/* App-wide entry to the tutor, as on the web: reachable from every tab, not just a module. */}
+    <TutorPanel variant="floating" accent={color.select} />
+    </>
   );
 }

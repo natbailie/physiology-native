@@ -32,3 +32,24 @@ vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   SafeAreaProvider: ({ children }: { children: unknown }) => children,
 }));
+
+// react-native-svg is native code the runner cannot parse (it sits behind no `react-native` →
+// `react-native-web` alias). Anything that draws a gradient or an illustration imports it, so the
+// stub lives here once rather than in each test; a test that needs different behaviour can still
+// `vi.mock` it locally, as RoundBoard's does.
+vi.mock('react-native-svg', () => {
+  const Null = () => null;
+  return {
+    __esModule: true,
+    default: Null,
+    Svg: Null,
+    Defs: Null,
+    Rect: Null,
+    Circle: Null,
+    Path: Null,
+    G: Null,
+    LinearGradient: Null,
+    RadialGradient: Null,
+    Stop: Null,
+  };
+});

@@ -78,7 +78,7 @@ function BaselineBar({
   return (
     <View style={[styles.baselineBar, { backgroundColor: withAlpha(accent, 0.08) }]}>
       <Text style={[styles.baselineHint, { color: color.textDim }]}>
-        {hasBaseline ? 'Baseline frozen — running trace overlays it' : 'Freeze this trace to compare scenarios'}
+        {hasBaseline ? 'Baseline frozen, running trace overlays it' : 'Freeze this trace to compare scenarios'}
       </Text>
       <Pressable
         onPress={hasBaseline ? onClear : onCapture}

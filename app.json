@@ -72,7 +72,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.bentara.physiology"
+      "package": "com.bentara.physiology",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-router",

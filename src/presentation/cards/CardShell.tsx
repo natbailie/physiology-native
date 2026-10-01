@@ -150,14 +150,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderRadius: RADIUS.lg,
-    padding: SPACE.xl,
-    gap: SPACE.sm,
-    // --shadow-1. Android takes the elevation, iOS the offset/opacity/radius.
-    elevation: 1,
+    padding: SPACE.xl + 4,
+    gap: SPACE.md,
+    // Between --shadow-1 and --shadow-2: a tile that sits visibly above the page rather than
+    // being outlined on it, which is most of what stops a grid of cards reading as a list of rows.
+    elevation: 2,
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
   },
   // The web lifts the tile 2px and deepens the accent on hover. A phone has no hover, so the
   // same budget is spent on the press state instead — now a scale as well as this, so the tile

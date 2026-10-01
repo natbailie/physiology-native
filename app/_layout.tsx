@@ -2,10 +2,13 @@
 // its own comment names this import. Without it that store falls back to memory and a learner's
 // streak resets on every launch. Must run before anything reads the store.
 import 'expo-sqlite/localStorage/install';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth/AuthContext';
+import { OfflineBanner } from '../src/presentation/OfflineBanner';
+import { ErrorScreen } from '../src/presentation/ErrorScreen';
 import { TermSheetProvider } from '../src/presentation/TermSheet';
 import { DURATION, useAppTheme } from '../src/presentation/theme';
 
@@ -56,6 +59,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Study' }} />
         <Stack.Screen name="module/[id]" options={{ headerBackTitle: 'Study' }} />
         <Stack.Screen name="pricing" options={{ title: 'Full access' }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
       </Stack>
     </>
   );
@@ -68,9 +72,27 @@ export default function RootLayout() {
         {/* Above the navigator so the definition sheet is a layer over whatever screen asked for
             it, and so one Modal serves every readout in the app rather than one per tile. */}
         <TermSheetProvider>
-          <RootNavigator />
+          <View style={{ flex: 1 }}>
+            <OfflineBanner />
+            <RootNavigator />
+          </View>
         </TermSheetProvider>
       </AuthProvider>
     </SafeAreaProvider>
+  );
+}
+
+/**
+ * expo-router renders this in place of the screen when anything below it throws while rendering.
+ * Without it a render error shows the platform's red or blank screen and the learner has to kill
+ * the app. Progress is saved as it happens, so retrying loses nothing.
+ */
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  return (
+    <ErrorScreen
+      title="That one is on us"
+      message="This screen hit a problem, but your progress is saved. Give it another go, and if it keeps happening, restart the app."
+      action={{ label: 'Try again', onPress: () => void retry() }}
+    />
   );
 }

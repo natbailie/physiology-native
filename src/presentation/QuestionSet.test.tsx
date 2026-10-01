@@ -81,7 +81,7 @@ function show({
 describe('QuestionSet', () => {
   it('names the unclaimed set and renders its instrument before committing', () => {
     show();
-    expect(screen.getByText(/the one question in this module/i)).toBeDefined();
+    expect(screen.getByText(/one question that tests whether you can predict/i)).toBeDefined();
     expect(screen.getByRole('button', { name: 'Alpha disease' })).toBeDefined();
     // Settled alpha: dial 2 for 1s.
     expect(screen.getByText('2.00')).toBeDefined();

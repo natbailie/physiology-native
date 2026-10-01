@@ -76,8 +76,8 @@ export function QuestionSet({
         <Text style={[styles.title, { color: color.text }]}>Questions</Text>
         <Text style={[styles.blurb, { color: color.textDim }]}>
           {count === 1
-            ? 'The one question in this module that belongs to no patient.'
-            : `${count} questions that belong to no patient — the scenarios with no bed, and the mechanism drills.`}
+            ? 'One question that tests whether you can predict what the system will do, and explain why.'
+            : `${count} questions that test whether you can predict what the system will do, and explain why.`}
         </Text>
       </View>
 

@@ -17,6 +17,7 @@ import {
   type OwnReview,
   type PublishedReview,
 } from '../src/shared/reviews/reviews';
+import { RetryButton } from '../src/presentation/RetryButton';
 import { KeyboardAwareScroll } from '../src/presentation/KeyboardAwareScroll';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../src/presentation/theme';
 
@@ -56,7 +57,15 @@ export default function ReviewsScreen() {
         {!isSupabaseConfigured ? (
           <Body>Reviews are not available in this build.</Body>
         ) : failed ? (
-          <Body>Reviews could not be loaded just now. Try again later.</Body>
+          <>
+            <Body>Reviews could not be loaded. Check your connection and try again.</Body>
+            <RetryButton
+              onPress={() => {
+                setFailed(false);
+                load();
+              }}
+            />
+          </>
         ) : reviews === null ? (
           <Body>Loading reviews…</Body>
         ) : summary.count === 0 ? (

@@ -124,6 +124,12 @@ export interface Palette {
   textFaint: string;
   /** House accent, and the ink it takes on a filled control. */
   brand: string;
+  /** The far stop of the house gradient (`brand` -> `brandDeep`): hero banners, filled buttons,
+   *  progress fills. */
+  brandDeep: string;
+  /** The one SELECTION colour — the picked plan, the active chip, the current tab. Warm against
+   *  the cool brand so "chosen" reads before the label does. Not a status colour. */
+  select: string;
   onSolid: string;
   /** The branding surface: a near-black slate panel used on the LIGHT page too, not only in dark
    *  mode. Upstream it is `panel.module.css`'s `.ink`, and the study strip is where it appears. */
@@ -159,6 +165,8 @@ function paletteFor(theme: ThemeName): Palette {
     textDim: token(theme, '--text-dim'),
     textFaint: token(theme, '--text-faint'),
     brand: token(theme, '--brand'),
+    brandDeep: token(theme, '--brand-deep'),
+    select: token(theme, '--select'),
     onSolid: token(theme, '--on-solid'),
     readoutInk: token(theme, '--readout-ink'),
     readoutInkBorder: token(theme, '--readout-ink-border'),
@@ -205,6 +213,25 @@ export const FONT = {
 
 /** `--lh-tight` / `--lh-snug` / `--lh-prose`, as multipliers. */
 export const LINE = { tight: 1.2, snug: 1.4, prose: 1.6 } as const;
+
+/** `--shadow-2`/`--shadow-3`, for the cards that float (hero overlaps, plan tiles, the sticky CTA).
+ *  iOS takes the offset/opacity/radius, Android the elevation. */
+export const SHADOW = {
+  raised: {
+    elevation: 3,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+  },
+  float: {
+    elevation: 8,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+  },
+} as const;
 
 /** The iOS minimum touch target. Nothing tappable may be smaller in either dimension. */
 export const TAP = 44;

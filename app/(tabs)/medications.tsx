@@ -5,6 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FAMILIES, MEDICATIONS, type DrugClass, type FamilyMeta } from '../../src/medications/drugs';
 import { MODULES } from '../../src/home/moduleRegistry';
 import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../../src/presentation/theme';
+import { Button } from '../../src/presentation/ui/Button';
+import { Illustration } from '../../src/presentation/ui/Illustration';
+import { SearchBar } from '../../src/presentation/ui/SearchBar';
 
 /**
  * The pharmacology hub: the UK top-100 drug classes, by family.
@@ -40,12 +43,29 @@ function ClassRow({ drugClass }: { drugClass: DrugClass }) {
   );
 }
 
-function FamilySection({ family }: { family: FamilyMeta }) {
-  const [open, setOpen] = useState(false);
+/** Every query word has to appear in the class name, a drug in it, or its mechanism. */
+function matchesQuery(drugClass: DrugClass, query: string): boolean {
+  const haystack = `${drugClass.className} ${drugClass.drugs.join(' ')} ${drugClass.mechanism}`.toLowerCase();
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => haystack.includes(word));
+}
+
+function FamilySection({ family, query }: { family: FamilyMeta; query: string }) {
+  const [opened, setOpened] = useState(false);
   const { color } = useAppTheme();
   // `DrugClass.family` is the display name; `FamilyMeta.id` is its URL slug. Matching on the id
   // silently found nothing and every family read "0 classes".
-  const classes = MEDICATIONS.filter((c) => c.family === family.name);
+  const all = MEDICATIONS.filter((c) => c.family === family.name);
+  const searching = query.trim() !== '';
+  const classes = searching ? all.filter((c) => matchesQuery(c, query)) : all;
+  // A search opens the families that have a hit, so the answer is on screen without a second tap;
+  // and a family with no hit steps out of the way.
+  if (searching && classes.length === 0) return null;
+  const open = searching || opened;
+  const setOpen = (update: (v: boolean) => boolean) => setOpened(update);
   return (
     <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
       <Pressable
@@ -58,10 +78,11 @@ function FamilySection({ family }: { family: FamilyMeta }) {
           <Text style={[styles.familyName, { color: color.text }]}>{family.name}</Text>
           <Text style={[styles.blurb, { color: color.textDim }]}>{family.blurb}</Text>
           <Text style={[styles.count, { color: color.textFaint }]}>
-            {family.classCount} {family.classCount === 1 ? 'class' : 'classes'}
+            {searching ? `${classes.length} of ${family.classCount}` : family.classCount}{' '}
+            {family.classCount === 1 ? 'class' : 'classes'}
           </Text>
         </View>
-        <Text style={[styles.toggle, { color: color.brand }]}>{open ? 'Hide' : 'Open'}</Text>
+        {!searching && <Text style={[styles.toggle, { color: color.brand }]}>{open ? 'Hide' : 'Open'}</Text>}
       </Pressable>
       {open && (
         <View style={styles.classes}>
@@ -77,29 +98,55 @@ function FamilySection({ family }: { family: FamilyMeta }) {
 export default function MedicationsScreen() {
   const { color } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState('');
+  const searching = query.trim() !== '';
+  const anyHit = !searching || MEDICATIONS.some((c) => matchesQuery(c, query));
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: color.bg }]}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xxl }]}
+      // Type to filter, or scroll the families as before; a drag dismisses the keyboard.
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       <Stack.Screen options={{ title: 'Medications' }} />
+      <SearchBar
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Try “beta blocker” or “reduces preload”"
+        accessibilityLabel="Search drug classes"
+      />
       {/* On this screen, not only on Home: a drug list is exactly what somebody might glance at
           on a ward, and it describes mechanisms for learning, not doses or prescribing. */}
       <Text style={[styles.disclaimer, { color: color.textDim }]}>
-        For learning pharmacology mechanisms only — not prescribing guidance. In practice, use the BNF,
+        For learning pharmacology mechanisms only, not prescribing guidance. In practice, use the BNF,
         local guidelines and senior advice.
       </Text>
-      {FAMILIES.map((family) => (
-        <FamilySection key={family.id} family={family} />
-      ))}
+      {anyHit ? (
+        FAMILIES.map((family) => <FamilySection key={family.id} family={family} query={query} />)
+      ) : (
+        <View style={styles.empty}>
+          <Illustration kind="search" size={96} />
+          <Text accessibilityRole="header" style={[styles.emptyTitle, { color: color.text }]}>
+            No class matches “{query.trim()}”
+          </Text>
+          <Text style={[styles.emptyBody, { color: color.textDim }]}>
+            Try the name of a drug, like “ramipril”, or a mechanism, like “ACE”.
+          </Text>
+          <Button label="Clear search" variant="secondary" onPress={() => setQuery('')} />
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: SPACE.xl, gap: SPACE.md },
-  card: { borderWidth: 1, borderRadius: RADIUS.md, padding: SPACE.xl },
+  content: { padding: SPACE.xl, gap: SPACE.lg },
+  empty: { alignItems: 'center', gap: SPACE.lg, paddingVertical: SPACE.xxl },
+  emptyTitle: { fontSize: FONT.lg, fontWeight: '700', textAlign: 'center' },
+  emptyBody: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose, textAlign: 'center' },
+  card: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACE.xl },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

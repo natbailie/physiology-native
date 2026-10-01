@@ -47,8 +47,9 @@ products. Put the Test Store key in `EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY`.
 ## Layout
 
 - `app/` — Expo Router screens. A root stack holds `(tabs)` plus the two screens that push over
-  the tab bar: `module/[id]` (the simulator shell, which wants the full screen height) and
-  `pricing`. The tabs are `(home)` — itself a stack of the catalogue's three tiers, `index`
+  the tab bar: `module/[id]` (the simulator shell, which wants the full screen height),
+  `pricing`, `reviews`, `legal/[doc]` (privacy, terms, refunds, accessibility, cookies) and
+  `onboarding` (exam profile), with a `+not-found` fallback. The tabs are `(home)` — itself a stack of the catalogue's three tiers, `index`
   (subjects) → `discipline/[id]` (themes) → `theme/[id]` (modules), mirroring the web's
   `#home` → `#discipline/<id>` → `#theme/<id>` — plus `reference`, `medications` and `account`.
 - `src/engine/<module>/` — a module's file-synced engine, presentation schema, questions and
@@ -70,6 +71,11 @@ products. Put the Test Store key in `EXPO_PUBLIC_REVENUECAT_PUBLIC_KEY`.
   a sync-policed directory (see SYNCED_ONLY_DIRS in `scripts/sync-engines.mjs`).
 - `src/hooks/useNativeEngineLoop.ts` — the native loop: ref-held state, sub-stepping, bounded
   history, background pause.
+- `src/home/`, `src/account/`, `src/medications/`, `src/reference/`, `src/onboarding/` — the
+  catalogue registry, exam filters and progress hooks; the exam profile; the drug formulary; the
+  formula sheet; first-run state. `home/`, `medications/` and `reference/` are synced-only
+  directories; `account/examProfile.ts` is a synced copy; `onboarding/` is native-only.
+- `src/purchases/` — the native RevenueCat integration (see Purchases).
 - `src/lib/env.ts`, `src/lib/supabaseOptions.ts` — the two platform seams (below).
 - `scripts/` — `sync-engines.mjs`, `generate-adapters.mjs`.
 
@@ -85,7 +91,7 @@ npm run sync         # re-derive after a change in the web repo
 npm run sync:check   # exit 1 on drift, a missing web source, or an orphaned copy
 ```
 
-What crosses over: the 45 engines, their presentation schemas, question banks and explainer prose;
+What crosses over: the 53 engines, their presentation schemas, question banks and explainer prose;
 the module registry; the assessment layer (progress store, spaced repetition, weakness ranking);
 auth; the entitlement gate; the tutor's corpus and retrieval; the theme tokens; the formulary and
 the formula sheet.
@@ -124,10 +130,25 @@ The pricing screen reads prices from the live offering and falls back to the syn
 when the SDK is unconfigured, unreachable, or still loading — the same three-state discipline the
 web `PricingPage` keeps.
 
+## RevenueCat Shipaton 2026 — notes for judges
+
+- **What uses RevenueCat.** The subscription paywall: `react-native-purchases` (`src/purchases/`),
+  one offering with Monthly and Annual packages, one entitlement (`full_access`), and the
+  Supabase user id as the App User ID. A webhook (`physiology-app/supabase/functions/revenuecat-webhook`)
+  mirrors subscription state into Postgres so access follows the account across web and phone.
+- **Bundle / package id:** `com.bentara.physiology` (iOS and Android).
+- **Seeing premium.** Modules other than the free ones are gated. In a development build with a
+  RevenueCat **Test Store** key a purchase completes with no store account; see "Buying things
+  needs a development build" above. Store-build access for judges is supplied in the Devpost
+  submission notes, not in this repository.
+- **Status.** Store listings, real store SDK keys and the legal placeholders are tracked in
+  `docs/store-compliance-audit.md`; nothing in this README should be read as a claim that the app
+  is published.
+
 ## Checks
 
 ```
-npm run verify   # sync:check + adapters:check + typecheck + lint
+npm run verify   # sync:check + adapters:check + test + typecheck + lint
 ```
 
 `npm run lint` is not decoration: `react-hooks/rules-of-hooks` and `react-hooks/set-state-in-effect`
@@ -142,19 +163,22 @@ project generates its module manifest and for the same reason: Metro has no glob
 
 ## Status
 
-All 45 modules render, with presets, perturbations, sparkline and OD-curve charts, the frozen
+All 53 modules render, with presets, perturbations, sparkline and OD-curve charts, the frozen
 baseline overlay, engine-verified practice questions, the explainer prose and the tutor. Every
 `cls` the presentations use resolves, including the ones a module's engine drives through
 `styleVars` — BPPV thickens vestibular's posterior canal and brings its canaliths up, as on the
 web. Progress
-is on-device and syncs to an account when signed in. Three modules are free and the rest are gated,
-matching the web.
+is on-device and syncs to an account when signed in. Three modules (cardiorenal, respiratory, glucose regulation) plus the
+formula sheet and medications pages are free; the rest are gated, matching the web (`FREE_MODULE_IDS`).
 
 ## Known gaps
 
 - **No splash screen.** `app.json` sets an icon and an Android adaptive-icon foreground but no
   splash; Expo's default is used. A branding decision, not a code one.
-- **No tests.** The engines are covered by the web project's suite, but the hand-written native
-  code — the loop hook, the presentation views, the adapters — is covered only by typecheck and
-  lint. `jest-expo` is the obvious next step.
+- **Thin native test coverage.** The engines are covered by the web project's suite. The native
+  code has a small vitest suite (`npm test`: 20 files, 132 tests — secrets, purchases helpers, UI
+  primitives, retry/offline handling) but the loop hook, most presentation views and the adapters
+  rest on typecheck and lint. There are no on-device or screenshot tests.
+- **Not exercised on a simulator in CI.** Layout and keyboard behaviour are checked by hand; see
+  `docs/store-compliance-audit.md` for what was and was not verified.
 - **Diagram animation** (flow, liver arrows) is static, and there is no transport (play/pause/step).

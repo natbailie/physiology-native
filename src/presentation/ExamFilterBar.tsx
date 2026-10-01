@@ -29,10 +29,13 @@ export function ExamFilterBar() {
         onPress={() => setExamFilter(id)}
         style={[
           styles.chip,
-          { borderColor: color.panelBorder, backgroundColor: selected ? color.brand : color.panel },
+          {
+            borderColor: selected ? color.select : color.panelBorder,
+            backgroundColor: selected ? color.select : color.panel,
+          },
         ]}
       >
-        <Text style={[styles.chipText, { color: selected ? color.onSolid : color.textDim }]}>{label}</Text>
+        <Text style={[styles.chipText, { color: selected ? color.onSolid : color.text }]}>{label}</Text>
       </Pressable>
     );
   };
@@ -51,14 +54,16 @@ export function ExamFilterBar() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 0, marginBottom: SPACE.md },
-  row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs },
+  // Bled to the screen edges (the parent pads 16) so chips scroll under the gutter instead of
+  // stopping short of it, which is also what tells a thumb the row scrolls.
+  scroll: { flexGrow: 0, marginHorizontal: -SPACE.xl },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingHorizontal: SPACE.xl },
   chip: {
     minHeight: TAP,
     justifyContent: 'center',
     borderWidth: 1,
     borderRadius: RADIUS.pill,
-    paddingHorizontal: SPACE.md,
+    paddingHorizontal: SPACE.xl,
   },
-  chipText: { fontSize: FONT.micro, fontWeight: '600' },
+  chipText: { fontSize: FONT.xs, fontWeight: '600' },
 });

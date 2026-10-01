@@ -2,12 +2,10 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
-  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,8 +28,14 @@ import {
 import { invalidateStoreEntitlement, useNativeEntitlement } from '../src/purchases/useNativeEntitlement';
 import { useAuth } from '../src/auth/AuthContext';
 import { isSupabaseConfigured } from '../src/lib/supabase';
+import { RetryButton } from '../src/presentation/RetryButton';
+import { Button } from '../src/presentation/ui/Button';
+import { FormField } from '../src/presentation/ui/FormField';
+import { GradientBox } from '../src/presentation/ui/GradientBox';
+import { Illustration } from '../src/presentation/ui/Illustration';
+import { Skeleton } from '../src/presentation/ui/Skeleton';
 import { KeyboardAwareScroll } from '../src/presentation/KeyboardAwareScroll';
-import { FONT, LINE, RADIUS, SPACE, TAP, TRACKING_TIGHT, useAppTheme } from '../src/presentation/theme';
+import { FONT, LINE, RADIUS, SHADOW, SPACE, TAP, TRACKING_TIGHT, useAppTheme, withAlpha } from '../src/presentation/theme';
 
 /**
  * The store-billing half of the pre-purchase disclosure. App Store Review Guideline 3.1.2 wants
@@ -80,8 +84,12 @@ export default function PricingScreen() {
   // derived rather than written by an effect that would only cause a second render.
   const [offer, setOffer] = useState<{ userId: string; packages: OfferedPackage[] | null } | null>(null);
   const [selectedId, setSelectedId] = useState<PlanPackage['id']>('$rc_annual');
+  // Bumped by Retry to fetch the offering again.
+  const [offerAttempt, setOfferAttempt] = useState(0);
   const [buying, setBuying] = useState(false);
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
+  // The school-code form is a side door, so it stays folded until asked for (or until it has news).
+  const [codeOpen, setCodeOpen] = useState(false);
 
   const active = entitlement.status === 'active';
 
@@ -99,7 +107,7 @@ export default function PricingScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, offerAttempt]);
 
   // What to render prices from: the live offering when there is one, last known prices otherwise.
   const shown: readonly PlanPackage[] = offered ?? FALLBACK_PACKAGES;
@@ -145,7 +153,7 @@ export default function PricingScreen() {
     const result = await redeemLicence(code);
     setBusy(false);
     setRedeemed(result.ok);
-    const text = result.ok ? 'Redeemed — full access is on this account.' : result.message;
+    const text = result.ok ? 'Redeemed. Full access is on this account.' : result.message;
     setMessage(text);
     announce(text, !result.ok);
     if (result.ok) setCode('');
@@ -161,31 +169,54 @@ export default function PricingScreen() {
     >
       <Stack.Screen options={{ title: 'Full access' }} />
 
-      <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-        <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>{PLAN_NAME}</Text>
-        {active ? (
-          <Text style={[styles.active, { color: color.ok }]}>
-            Active
-            {entitlement.institutionName ? ` — via ${entitlement.institutionName}` : ''}
+      {/* The offer, on the brand gradient. The feature card below rides up over its bottom edge. */}
+      <GradientBox colors={[color.brandInk, color.brandDeep]} style={styles.hero}>
+        <View style={styles.heroText}>
+          <Text accessibilityRole="header" style={[styles.heroTitle, { color: color.onBrandInk }]}>
+            {PLAN_NAME}
           </Text>
-        ) : (
-          <Text style={[styles.body, { color: color.textDim }]}>
-            Three systems are free. Full access opens the rest.
-          </Text>
-        )}
+          {active ? (
+            <Text style={[styles.heroBody, { color: color.brandOnInk }]}>
+              You are all set{entitlement.institutionName ? `, courtesy of ${entitlement.institutionName}` : ''}.
+              Every simulator is open.
+            </Text>
+          ) : (
+            <Text style={[styles.heroBody, { color: color.brandInkDim }]}>
+              Three systems are free on any account. Full access opens everything else.
+            </Text>
+          )}
+        </View>
+        <Illustration kind="access" size={96} />
+      </GradientBox>
+
+      <View
+        style={[
+          styles.card,
+          styles.overlap,
+          SHADOW.raised,
+          { backgroundColor: color.panel, borderColor: color.panelBorder },
+        ]}
+      >
         {PLAN_FEATURES.map((feature) => (
-          <Text key={feature} style={[styles.feature, { color: color.textDim }]}>
-            · {feature}
-          </Text>
+          <View key={feature} style={styles.featureRow}>
+            <View style={[styles.tick, { backgroundColor: color.brand }]}>
+              <Text style={[styles.tickText, { color: color.onSolid }]}>✓</Text>
+            </View>
+            <Text style={[styles.feature, { color: color.text }]}>{feature}</Text>
+          </View>
         ))}
       </View>
 
       {!active && (
         <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-          <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>Price</Text>
+          <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>Choose your plan</Text>
 
           {loadingOffer ? (
-            <ActivityIndicator color={color.textDim} style={styles.spinner} />
+            // Two plan tiles' worth of placeholder, so the card keeps its height while prices arrive.
+            <View accessibilityLabel="Loading prices" accessibilityLiveRegion="polite" style={styles.skeletons}>
+              <Skeleton height={76} style={{ borderRadius: RADIUS.md }} />
+              <Skeleton height={76} style={{ borderRadius: RADIUS.md }} />
+            </View>
           ) : (
             shown.map((pkg) => {
               // Falls back to the first package when the preferred one is not in the offering, so
@@ -202,11 +233,20 @@ export default function PricingScreen() {
                   accessibilityLabel={`${pkg.label}, ${pkg.price} per ${pkg.period}`}
                   style={({ pressed }) => [
                     styles.priceRow,
-                    canBuy && styles.priceRowSelectable,
-                    canBuy && { borderColor: selected ? color.brand : color.panelBorder },
+                    styles.priceRowSelectable,
+                    {
+                      borderColor: selected ? color.select : color.panelBorder,
+                      backgroundColor: selected ? withAlpha(color.select, 0.1) : color.panelRaised,
+                      borderWidth: selected ? 2 : 1,
+                    },
                     pressed && styles.pressed,
                   ]}
                 >
+                  {pkg.id === '$rc_annual' && (
+                    <View style={[styles.badge, { backgroundColor: color.select }]}>
+                      <Text style={[styles.badgeText, { color: color.onSolid }]}>Best value</Text>
+                    </View>
+                  )}
                   <View style={styles.priceLine}>
                     <Text style={[styles.body, { color: color.textDim }]}>{pkg.label}</Text>
                     <Text style={[styles.price, { color: color.text }]}>
@@ -216,7 +256,7 @@ export default function PricingScreen() {
                   </View>
                   {/* On its own line: inline it was wider than the row on any phone and spilled
                       past the box. */}
-                  {pkg.note ? <Text style={[styles.note, { color: color.ok }]}>{pkg.note}</Text> : null}
+                  {pkg.note ? <Text style={[styles.note, { color: color.textDim }]}>{pkg.note}</Text> : null}
                 </Pressable>
               );
             })
@@ -261,48 +301,37 @@ export default function PricingScreen() {
           )}
 
           {buyMessage && (
-            <Text accessibilityLiveRegion="polite" style={[styles.message, { color: color.danger }]}>
-              Error: {buyMessage}
-            </Text>
+            <View accessibilityLiveRegion="polite" style={styles.problem}>
+              <View style={[styles.problemMark, { backgroundColor: color.danger }]}>
+                <Text style={[styles.problemMarkText, { color: color.onSolid }]}>!</Text>
+              </View>
+              <Text style={[styles.message, styles.problemText, { color: color.danger }]}>
+                Error: {buyMessage}
+              </Text>
+            </View>
           )}
 
           {canBuy && (
-            <Pressable
+            <Button
+              label="Subscribe (renews automatically)"
+              loading={buying}
               onPress={() => void buy()}
-              disabled={buying}
-              accessibilityState={{ disabled: buying }}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.primary,
-                { backgroundColor: color.brand },
-                buying && styles.primaryDisabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={[styles.primaryText, { color: color.onSolid }]}>
-                {buying ? 'One moment…' : 'Subscribe — renews automatically'}
-              </Text>
-            </Pressable>
+            />
           )}
 
           {/* Always reachable, not only when an offering loaded: a learner reinstalling on a
               flaky connection is exactly who needs it (Guideline 3.1.1). Purchases follow the
               account, so signed out it leads to sign-in first. */}
-          <Pressable
-            onPress={() => (user ? void restore() : router.push('/account'))}
+          <Button
+            variant="ghost"
+            label={user ? 'Restore purchases' : 'Sign in to restore purchases'}
             disabled={buying}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: buying }}
-            style={({ pressed }) => [styles.restore, pressed && styles.pressed]}
-          >
-            <Text style={[styles.restoreText, { color: color.textDim }]}>
-              {user ? 'Restore purchases' : 'Sign in to restore purchases'}
-            </Text>
-          </Pressable>
+            onPress={() => (user ? void restore() : router.push('/account'))}
+          />
 
           {!user && (
             <Text style={[styles.footnote, { color: color.textFaint }]}>
-              Sign in to subscribe — a subscription follows the account, not the device, so it works
+              Sign in to subscribe. A subscription follows the account, not the device, so it works
               on the web app too.
             </Text>
           )}
@@ -313,58 +342,70 @@ export default function PricingScreen() {
                 : 'Payments are not configured on this build, so the prices above are indicative.'}
             </Text>
           )}
+          {user && !loadingOffer && offered === null && isRevenueCatConfigured && (
+            <RetryButton
+              label="Retry loading prices"
+              onPress={() => {
+                setOffer(null);
+                setOfferAttempt((n) => n + 1);
+              }}
+            />
+          )}
         </View>
       )}
 
       {isSupabaseConfigured && (
         <View style={[styles.card, { backgroundColor: color.panel, borderColor: color.panelBorder }]}>
-          <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>Institutional code</Text>
-          <Text style={[styles.body, { color: color.textDim }]}>
-            If your school has bought seats, redeem your code here.
-          </Text>
-          <TextInput
-            value={code}
-            onChangeText={setCode}
-            placeholder="ABCD-EFGH-JK"
-            placeholderTextColor={color.textFaint}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            autoComplete="off"
-            // The alphabet these are minted from has no lookalikes, so a code is read off a slide
-            // and typed straight back in; `normaliseLicenceCode` strips whatever punctuation the
-            // learner adds to make it readable.
-            spellCheck={false}
-            accessibilityLabel="Institutional code"
-            accessibilityHint="The code your school or university gave you"
-            returnKeyType="go"
-            onSubmitEditing={() => !(busy || code.trim() === '' || !user) && void redeem()}
-            style={[styles.input, { borderColor: color.panelBorder, color: color.text }]}
-          />
-          {message && (
-            <Text
-              accessibilityLiveRegion="polite"
-              style={[styles.message, { color: redeemed ? color.ok : color.danger }]}
-            >
-              {redeemed ? '' : 'Error: '}
-              {message}
-            </Text>
-          )}
           <Pressable
-            onPress={() => void redeem()}
-            disabled={busy || code.trim() === '' || !user}
-            accessibilityState={{ disabled: busy || code.trim() === '' || !user }}
             accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.primary,
-              { backgroundColor: color.brand },
-              (busy || code.trim() === '' || !user) && styles.primaryDisabled,
-              pressed && styles.pressed,
-            ]}
+            accessibilityState={{ expanded: codeOpen || Boolean(message) }}
+            onPress={() => setCodeOpen(!codeOpen)}
+            style={styles.codeToggle}
           >
-            <Text style={[styles.primaryText, { color: color.onSolid }]}>
-              {!user ? 'Sign in to redeem' : busy ? 'Redeeming…' : 'Redeem'}
-            </Text>
+            <View style={styles.codeToggleText}>
+              <Text accessibilityRole="header" style={[styles.heading, { color: color.text }]}>
+                Got a code from your school?
+              </Text>
+              <Text style={[styles.body, { color: color.textDim }]}>
+                If your university or hospital has bought seats, redeem your code here.
+              </Text>
+            </View>
+            <Text style={[styles.chevron, { color: color.textFaint }]}>{codeOpen || message ? '˄' : '˅'}</Text>
           </Pressable>
+
+          {(codeOpen || message) && (
+            <>
+              <FormField
+                layout="stacked"
+                label="Institutional code"
+                value={code}
+                onChangeText={setCode}
+                placeholder="ABCD-EFGH-JK"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="off"
+                // The alphabet these are minted from has no lookalikes, so a code is read off a
+                // slide and typed straight back in; `normaliseLicenceCode` strips whatever
+                // punctuation the learner adds to make it readable.
+                spellCheck={false}
+                accessibilityHint="The code your school or university gave you"
+                returnKeyType="go"
+                onSubmitEditing={() => !(busy || code.trim() === '' || !user) && void redeem()}
+                error={message && !redeemed ? message : null}
+              />
+              {message && redeemed && (
+                <Text accessibilityLiveRegion="polite" style={[styles.message, { color: color.ok }]}>
+                  {message}
+                </Text>
+              )}
+              <Button
+                label={!user ? 'Sign in to redeem' : 'Redeem code'}
+                loading={busy}
+                disabled={code.trim() === '' || !user}
+                onPress={() => void redeem()}
+              />
+            </>
+          )}
         </View>
       )}
     </KeyboardAwareScroll>
@@ -373,8 +414,43 @@ export default function PricingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: SPACE.xl, gap: SPACE.lg },
-  card: { borderWidth: 1, borderRadius: RADIUS.md, padding: SPACE.xl, gap: SPACE.md },
+  content: { padding: SPACE.xl, gap: SPACE.xl },
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACE.lg,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACE.xxl,
+    paddingTop: SPACE.xxl,
+    paddingBottom: SPACE.xxxl + SPACE.xxl,
+  },
+  heroText: { flex: 1, gap: SPACE.md },
+  heroTitle: { fontSize: FONT.xl, fontWeight: '700', letterSpacing: TRACKING_TIGHT },
+  heroBody: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose },
+  // Rides up over the hero's bottom edge, so banner and card read as one object.
+  overlap: { marginTop: -(SPACE.xxxl + SPACE.xxl), marginHorizontal: SPACE.md },
+  featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.lg },
+  tick: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  tickText: { fontSize: FONT.xs, fontWeight: '700' },
+  skeletons: { gap: SPACE.lg },
+  badge: {
+    position: 'absolute',
+    top: -12,
+    right: SPACE.lg,
+    paddingHorizontal: SPACE.lg,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
+  },
+  badgeText: { fontSize: FONT.micro, fontWeight: '700', letterSpacing: 0.4 },
+  problem: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.md },
+  problemMark: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  problemMarkText: { fontSize: FONT.micro, fontWeight: '700' },
+  problemText: { flex: 1 },
+  codeToggle: { flexDirection: 'row', alignItems: 'center', gap: SPACE.lg, minHeight: TAP },
+  codeToggleText: { flex: 1, gap: SPACE.xs },
+  chevron: { fontSize: FONT.lg, fontWeight: '700' },
+  card: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACE.xl, gap: SPACE.lg },
   heading: { fontSize: FONT.base, fontWeight: '700', letterSpacing: TRACKING_TIGHT },
   body: { fontSize: FONT.sm, lineHeight: FONT.sm * LINE.prose },
   feature: { fontSize: FONT.xs, lineHeight: FONT.xs * LINE.prose },
@@ -382,13 +458,13 @@ const styles = StyleSheet.create({
   spinner: { alignSelf: 'flex-start' },
   priceRow: { gap: SPACE.xs },
   priceLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACE.md },
-  // Only a selectable row gets a box round it; with nothing to buy the prices stay plain text.
+  // Always a card, so the offer reads the same signed in or out; only a buyable one can be picked.
   priceRowSelectable: {
     borderWidth: 1,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.md,
-    minHeight: TAP,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACE.xl,
+    paddingVertical: SPACE.lg,
+    minHeight: 76,
     justifyContent: 'center',
   },
   price: { fontSize: FONT.lg, fontWeight: '700' },

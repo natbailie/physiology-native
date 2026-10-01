@@ -12,3 +12,7 @@ expo-env.d.ts
 .DS_Store
 ios/
 android/
+
+# Tooling output
+.vitest/
+tsconfig.tsbuildinfo

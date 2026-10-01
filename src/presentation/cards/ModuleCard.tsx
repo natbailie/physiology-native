@@ -11,6 +11,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { ModuleDescriptor } from '../../home/moduleRegistry';
 import { examShortName } from '../../home/exams';
 import { accentFrom, FONT, LINE, RADIUS, TRACKING_TIGHT, useAppTheme, withAlpha } from '../theme';
+import { ProgressBar } from '../ui/ProgressBar';
 import { Badge } from './Badge';
 import { CardNameRow, CardShell } from './CardShell';
 
@@ -89,16 +90,16 @@ export function ModuleCard({
         </View>
       )}
       {mastery !== undefined && (
-        <View
-          style={[styles.meter, { backgroundColor: color.panelBorder }]}
-          accessibilityLabel={`${Math.round(mastery * 100)} per cent known`}
-        >
-          {/* Floored at 2% so a first correct answer is visible rather than a rounding artefact,
-              which is what the web's `Math.max(mastery * 100, 2)` is doing. */}
-          <View
-            style={[styles.meterFill, { width: `${Math.max(mastery * 100, 2)}%`, backgroundColor: accent }]}
-          />
-        </View>
+        // Floored at 2% so a first correct answer is visible rather than a rounding artefact, which
+        // is what the web's `Math.max(mastery * 100, 2)` is doing. Brand gradient, not the module's
+        // accent: the two-colour rule reserves colour for what it means, and "how much you know" is
+        // the same thing on every card.
+        <ProgressBar
+          value={Math.max(mastery * 100, 2)}
+          max={100}
+          label={`${Math.round(mastery * 100)} per cent known`}
+          height={6}
+        />
       )}
     </CardShell>
   );
@@ -125,8 +126,4 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     overflow: 'hidden',
   },
-  // A hairline rather than a progress bar: it has to read at a glance across a grid without any
-  // single card shouting.
-  meter: { height: 3, borderRadius: 2, overflow: 'hidden' },
-  meterFill: { height: '100%', borderRadius: 2 },
 });

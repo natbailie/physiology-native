@@ -71,7 +71,7 @@ export default function DisciplineScreen() {
       ))}
 
       <Text style={[styles.footnote, { color: color.textFaint }]}>
-        These are simplified, conceptual models built to teach mechanism — not clinical or
+        These are simplified, conceptual models built to teach mechanism, not clinical or
         diagnostic tools.
       </Text>
     </ScrollView>
