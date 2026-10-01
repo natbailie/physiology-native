@@ -3,6 +3,22 @@
 The React Native (Expo SDK 57) app that renders the same modules as the web project at
 `../physiology-app`, driven by file-synced copies of its engines.
 
+## Quick start (for judges)
+
+No accounts, keys or `.env.local` are needed — with nothing configured the app runs local-only,
+every module unlocked.
+
+```
+npm install
+npx expo start      # then press i (iOS simulator) or a (Android emulator), or scan the QR in Expo Go
+```
+
+Only the Subscribe button needs a development build (see below). `npm run sync` re-copies the
+engines from the sibling web repo and is **not** required to run the app — the synced copies are
+committed.
+
+The web version of this project is [natbailie/physiology-app](https://github.com/natbailie/physiology-app).
+
 ## Running it
 
 Prereqs: Node (`export PATH="$HOME/.nvm/versions/node/v24.11.0/bin:$PATH"` first), and a booted
